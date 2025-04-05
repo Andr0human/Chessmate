@@ -1,8 +1,6 @@
 import { Chess } from "chess.js";
 import React, { useEffect, useRef, useState } from "react";
-import { io } from "socket.io-client";
-
-const socket = io(process.env.NEXT_PUBLIC_SERVER_URL);
+import { socket } from "../services";
 
 const ChessBoard = ({ gameOptions }) => {
   const [game, setGame] = useState(new Chess());

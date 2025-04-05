@@ -1,15 +1,15 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { MantineProvider } from "@mantine/core";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-
+import { socket } from "../../services";
 const ChessBoard = dynamic(() => import("../../components/ChessBoard"), {
   ssr: false,
 });
 
-export default function SinglePlayerPage() {
+export default function MultiplayerPage() {
   const searchParams = useSearchParams();
   const [gameOptions, setGameOptions] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,8 +29,8 @@ export default function SinglePlayerPage() {
       increment: parseInt(increment),
       difficulty,
       players: {
-        white: side === "white" ? "Player" : "Computer",
-        black: side === "black" ? "Player" : "Computer",
+        white: startingSide === "white" ? "Player1" : "Player2",
+        black: startingSide === "black" ? "Player1" : "Player2",
       },
     });
 
