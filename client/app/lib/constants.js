@@ -14,3 +14,22 @@ export const DIFFICULTY_LEVELS = [
   { value: "hard", label: "Hard" },
   { value: "expert", label: "Expert" },
 ];
+
+export const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+
+export const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
+
+export const PIECE_SYMBOLS = {
+  p: "♟",
+  n: "♞",
+  b: "♝",
+  r: "♜",
+  q: "♛",
+  k: "♚",
+  P: "♙",
+  N: "♘",
+  B: "♗",
+  R: "♖",
+  Q: "♕",
+  K: "♔",
+};
