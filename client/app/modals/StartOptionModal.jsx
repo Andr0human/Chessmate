@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { DIFFICULTY_LEVELS, TIME_CONTROLS } from "../constants/gameOptions";
+import { DIFFICULTY_LEVELS, TIME_CONTROLS } from "../lib/constants";
 
 const StartOptionModal = ({ isOpen, onClose, gameType }) => {
   const router = useRouter();

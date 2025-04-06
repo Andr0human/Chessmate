@@ -16,24 +16,29 @@ export default function SinglePlayerPage() {
 
   useEffect(() => {
     const side = searchParams.get("side") || "white";
-    const timeControl = searchParams.get("time") || "10";
-    const increment = searchParams.get("increment") || "0";
+    const timeControl = searchParams.get("timeControl") || "0";
+    const increment = searchParams.get("increment");
     const difficulty = searchParams.get("difficulty") || "medium";
 
     const startingSide =
       "random" === side ? (Math.random() < 0.5 ? "white" : "black") : side;
 
-    setGameOptions({
+    const options = {
       side: startingSide,
-      timeControl: parseInt(timeControl),
-      increment: parseInt(increment),
       difficulty,
+      timeControl: parseInt(timeControl),
+
       players: {
         white: startingSide === "white" ? "Player" : "Computer",
         black: startingSide === "black" ? "Player" : "Computer",
       },
-    });
+    };
 
+    if (increment) {
+      options.increment = parseInt(increment);
+    }
+
+    setGameOptions(options);
     setLoading(false);
   }, [searchParams]);
 

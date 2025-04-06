@@ -1,30 +1,58 @@
-import { Server } from "socket.io";
-import dotenv from "dotenv";
+import { Server as SocketIOServer } from "socket.io";
+import { IServerConfig } from "./config";
+import http from "http";
 
-dotenv.config();
+class Server {
+  private static instance: Server;
 
-const PORT: number = parseInt(process.env.PORT || "8080");
+  private readonly config: IServerConfig;
 
-const io: Server = new Server(PORT, {
-  cors: {
-    origin: "*",
-  },
-});
+  private readonly io: SocketIOServer;
+  private readonly httpServer: http.Server;
 
-io.on("connection", (socket) => {
-  console.log(`socket connected ${socket.id}`);
+  private constructor(config: IServerConfig) {
+    this.config = config;
 
-  socket.on("disconnect", () => {
-    console.log(`socket disconnected ${socket.id}`);
-  });
+    const { cors } = this.config;
 
-  socket.on("played-move", (move) => {
-    console.log(`played-move: ${move}`);
+    this.httpServer = http.createServer();
 
-    socket.broadcast.emit("received-move", move);
-  });
-});
+    this.io = new SocketIOServer(this.httpServer, {
+      cors: {
+        origin: JSON.parse(cors.origin),
+        credentials: cors.credentials,
+      },
+    });
+  }
 
+  public static getInstance(config: IServerConfig): Server {
+    if (!Server.instance) {
+      Server.instance = new Server(config);
+    }
 
-console.log(`Server running on port ${PORT}`);
+    return Server.instance;
+  }
 
+  public run = () => {
+    this.io.on("connection", (socket) => {
+      console.log(`socket connected ${socket.id}`);
+
+      socket.on("disconnect", () => {
+        console.log(`socket disconnected ${socket.id}`);
+      });
+
+      socket.on("played-move", (move) => {
+        console.log(`played-move: ${move}`);
+
+        socket.broadcast.emit("received-move", move);
+      });
+    });
+
+    this.httpServer.listen(this.config.port, () => {
+      const { port } = this.config;
+      console.log(`Server running on port ${port}`);
+    });
+  };
+}
+
+export default Server;
