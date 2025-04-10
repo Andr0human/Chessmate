@@ -1,3 +1,4 @@
+import GameStatusModal from "./GameStatusModal";
 import StartOptionModal from "./StartOptionModal";
 
-export { StartOptionModal };
+export { GameStatusModal, StartOptionModal };

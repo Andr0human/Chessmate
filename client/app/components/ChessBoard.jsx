@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { formatTime, getPieceSymbol, squareToAlgebraic } from "../lib/helpers";
 import { socket } from "../services";
 
-const ChessBoard = ({ gameOptions }) => {
+const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // State management
   const [game, setGame] = useState(new Chess());
   const [boardPosition, setBoardPosition] = useState(game.board());
@@ -32,15 +32,15 @@ const ChessBoard = ({ gameOptions }) => {
     if (!gameOptions) return;
 
     // Set initial board flip based on player side preference
-    if (gameOptions.side === "black") {
+    if (gameOptions.board.side === "black") {
       setBoardFlipped(true);
     }
 
     // Initialize timers if game has time control
-    if (gameOptions?.timeControl > 0) {
-      const timeInMs = gameOptions.timeControl * 60 * 1000;
-      const sideUpper = gameOptions.side === "white" ? "black" : "white";
-      const sideLower = gameOptions.side;
+    if (gameOptions.board?.timeControl > 0) {
+      const timeInMs = gameOptions.board.timeControl * 60 * 1000;
+      const sideUpper = gameOptions.board.side === "white" ? "black" : "white";
+      const sideLower = gameOptions.board.side;
 
       setClock((prev) => ({
         ...prev,
@@ -48,11 +48,11 @@ const ChessBoard = ({ gameOptions }) => {
         black: timeInMs,
         upper: {
           side: sideUpper,
-          name: gameOptions.players[sideUpper],
+          name: gameOptions.board.players[sideUpper],
         },
         lower: {
           side: sideLower,
-          name: gameOptions.players[sideLower],
+          name: gameOptions.board.players[sideLower],
         },
       }));
     }
@@ -60,7 +60,7 @@ const ChessBoard = ({ gameOptions }) => {
 
   // Handle timer
   useEffect(() => {
-    if (!gameOptions?.timeControl) return;
+    if (!gameOptions.board?.timeControl || !isGameReady) return;
 
     // Clear any existing timer
     if (timerInterval.current) {
@@ -86,7 +86,7 @@ const ChessBoard = ({ gameOptions }) => {
         clearInterval(timerInterval.current);
       }
     };
-  }, [game.turn(), gameOptions?.timeControl]);
+  }, [game.turn(), gameOptions.board?.timeControl, isGameReady]);
 
   // Handle game move
   const playMove = useCallback(
@@ -96,12 +96,11 @@ const ChessBoard = ({ gameOptions }) => {
       setLegalMoves([]);
       setDraggingPiece(null);
 
-      console.log("played-move", move);
-      socket.emit("played-move", JSON.stringify(move));
+      socket.emit("move_sent", JSON.stringify(move), roomId);
 
       // Add increment to player's time if provided
-      if (gameOptions?.increment > 0) {
-        const incrementMs = gameOptions.increment * 1000;
+      if (gameOptions.board?.increment > 0) {
+        const incrementMs = gameOptions.board.increment * 1000;
         const playerColor = move.color === "w" ? "white" : "black";
 
         setClock((prev) => ({
@@ -110,16 +109,12 @@ const ChessBoard = ({ gameOptions }) => {
         }));
       }
     },
-    [game, gameOptions?.increment]
+    [game, gameOptions.board?.increment]
   );
 
   // Socket connection and move handling
   useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Connected to server", socket.id);
-    });
-
-    socket.on("received-move", (moveData) => {
+    socket.on("move_received", (moveData) => {
       console.log("New move received:", moveData);
 
       // Parse the move from the received string
@@ -138,8 +133,7 @@ const ChessBoard = ({ gameOptions }) => {
 
     // Clean up the socket listener on component unmount
     return () => {
-      socket.off("received-move");
-      socket.off("connect");
+      socket.off("move_received");
     };
   }, [game]);
 
@@ -189,6 +183,9 @@ const ChessBoard = ({ gameOptions }) => {
   // Handle piece click or touch
   const handlePieceSelect = useCallback(
     (piece, square) => {
+      // Don't allow moves if game is not ready
+      if (!isGameReady) return;
+
       // If the same piece is clicked again, deselect it
       if (selectedSquare === square) {
         setSelectedSquare(null);
@@ -203,12 +200,15 @@ const ChessBoard = ({ gameOptions }) => {
       setSelectedSquare(square);
       setLegalMoves(getLegalMovesForSquare(square));
     },
-    [game, getLegalMovesForSquare, selectedSquare]
+    [game, getLegalMovesForSquare, selectedSquare, isGameReady]
   );
 
   // Handle square click to move selected piece
   const handleSquareClick = useCallback(
     (targetSquare) => {
+      // Don't allow moves if game is not ready
+      if (!isGameReady) return;
+
       // Prevent duplicate move processing
       if (processingMove) return;
 
@@ -233,12 +233,15 @@ const ChessBoard = ({ gameOptions }) => {
         }
       }
     },
-    [game, legalMoves, playMove, processingMove, selectedSquare]
+    [game, legalMoves, playMove, processingMove, selectedSquare, isGameReady]
   );
 
   // Handle piece dragging start
   const handleDragStart = useCallback(
     (e, piece, square) => {
+      // Don't allow moves if game is not ready
+      if (!isGameReady) return;
+
       // Only allow dragging pieces of the current player's color
       const currentTurn = game.turn();
       if (piece.color !== currentTurn) return;
@@ -248,13 +251,17 @@ const ChessBoard = ({ gameOptions }) => {
       setLegalMoves(getLegalMovesForSquare(square));
       e.dataTransfer.effectAllowed = "move";
     },
-    [game, getLegalMovesForSquare]
+    [game, getLegalMovesForSquare, isGameReady]
   );
 
   // Handle dropping a piece
   const handleDrop = useCallback(
     (e, targetSquare) => {
       e.preventDefault();
+
+      // Don't allow moves if game is not ready
+      if (!isGameReady) return;
+
       if (!draggingPiece || processingMove) return;
 
       setProcessingMove(true);
@@ -278,7 +285,7 @@ const ChessBoard = ({ gameOptions }) => {
         }, 100);
       }
     },
-    [draggingPiece, game, playMove, processingMove]
+    [draggingPiece, game, playMove, processingMove, isGameReady]
   );
 
   // Allow dropping
@@ -437,10 +444,10 @@ const ChessBoard = ({ gameOptions }) => {
           <div className="bg-black bg-opacity-60 py-2 px-4 rounded text-white text-xl font-medium">
             {playerInfo.name}
           </div>
-          {gameOptions?.timeControl > 0 && (
+          {gameOptions.board?.timeControl > 0 && (
             <div
               className={`timer text-3xl font-mono font-bold rounded py-1 px-4 ${
-                clock.active === playerInfo.side
+                clock.active === playerInfo.side && isGameReady
                   ? "bg-black bg-opacity-70 text-white animate-pulse"
                   : "bg-black bg-opacity-50 text-white"
               }`}
@@ -451,7 +458,7 @@ const ChessBoard = ({ gameOptions }) => {
         </div>
       );
     },
-    [clock, gameOptions?.timeControl]
+    [clock, gameOptions.board?.timeControl, isGameReady]
   );
 
   return (
@@ -480,22 +487,35 @@ const ChessBoard = ({ gameOptions }) => {
           Flip Board
         </button>
 
-        <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+        <button
+          className={`px-4 py-2 bg-green-600 text-white rounded ${
+            isGameReady ? "hover:bg-green-700" : "opacity-50 cursor-not-allowed"
+          }`}
+          disabled={!isGameReady}
+        >
           Offer Draw
         </button>
 
-        <button className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+        <button
+          className={`px-4 py-2 bg-red-600 text-white rounded ${
+            isGameReady ? "hover:bg-red-700" : "opacity-50 cursor-not-allowed"
+          }`}
+          disabled={!isGameReady}
+        >
           Resign
         </button>
 
         <div className="mt-0 xl:mt-4 hidden xl:block">
           <h3 className="font-bold mb-2 text-white">Game Info</h3>
           <div className="text-sm text-gray-300">
-            <p>Difficulty: {gameOptions?.difficulty || "N/A"}</p>
-            <p>Time Control: {gameOptions?.timeControl || "No"} min</p>
-            {gameOptions?.increment > 0 && (
-              <p>Increment: {gameOptions.increment} sec</p>
+            <p>Time Control: {gameOptions.board?.timeControl || "No"} min</p>
+            {gameOptions.board?.increment > 0 && (
+              <p>Increment: {gameOptions.board.increment} sec</p>
             )}
+            <p>
+              Game Status:{" "}
+              {isGameReady ? "In Progress" : "Waiting for opponent"}
+            </p>
           </div>
         </div>
       </div>

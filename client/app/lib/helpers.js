@@ -21,3 +21,26 @@ export const getPieceSymbol = (piece) => {
 
   return PIECE_SYMBOLS[piece.type] || "";
 };
+
+// Generate a random 6-character roomId
+export const generateRoomId = () => {
+  const chars =
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let result = "";
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+export const generateBoardOptions = ({ side, timeControl, increment }) => {
+  return {
+    side,
+    timeControl,
+    increment,
+    players: {
+      white: side === "white" ? "Player1" : "Player2",
+      black: side === "black" ? "Player1" : "Player2",
+    },
+  };
+};

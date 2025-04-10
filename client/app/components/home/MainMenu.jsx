@@ -10,6 +10,7 @@ const MainMenu = () => {
   const [showAnimation, setShowAnimation] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [gameType, setGameType] = useState("");
+  const [basePath, setBasePath] = useState("");
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -46,6 +47,7 @@ const MainMenu = () => {
               className="button-primary button-green"
               onClick={() => {
                 setGameType("singleplayer");
+                setBasePath("/play/single");
                 setModalOpen(true);
               }}
             >
@@ -56,6 +58,7 @@ const MainMenu = () => {
               className="button-primary button-blue"
               onClick={() => {
                 setGameType("multiplayer");
+                setBasePath("/play/friend");
                 setModalOpen(true);
               }}
             >
@@ -79,6 +82,7 @@ const MainMenu = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         gameType={gameType}
+        basePath={basePath}
       />
     </div>
   );
