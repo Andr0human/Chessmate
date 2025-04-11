@@ -183,8 +183,8 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Handle piece click or touch
   const handlePieceSelect = useCallback(
     (piece, square) => {
-      // Don't allow moves if game is not ready
-      if (!isGameReady) return;
+      const turn = game.turn() === "w" ? "white" : "black";
+      if (!isGameReady || turn !== gameOptions?.board?.side) return;
 
       // If the same piece is clicked again, deselect it
       if (selectedSquare === square) {
@@ -206,8 +206,8 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Handle square click to move selected piece
   const handleSquareClick = useCallback(
     (targetSquare) => {
-      // Don't allow moves if game is not ready
-      if (!isGameReady) return;
+      const turn = game.turn() === "w" ? "white" : "black";
+      if (!isGameReady || turn !== gameOptions?.board?.side) return;
 
       // Prevent duplicate move processing
       if (processingMove) return;
@@ -239,11 +239,11 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Handle piece dragging start
   const handleDragStart = useCallback(
     (e, piece, square) => {
-      // Don't allow moves if game is not ready
-      if (!isGameReady) return;
-
-      // Only allow dragging pieces of the current player's color
+      const turn = game.turn() === "w" ? "white" : "black";
+      if (!isGameReady || turn !== gameOptions?.board?.side) return;
+      
       const currentTurn = game.turn();
+      // Only allow dragging pieces of the current player's color
       if (piece.color !== currentTurn) return;
 
       setDraggingPiece({ piece, square });
