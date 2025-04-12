@@ -20,23 +20,10 @@ export default function SinglePlayerPage() {
     const increment = searchParams.get("increment");
     const difficulty = searchParams.get("difficulty") || "medium";
 
-    const startingSide =
-      "random" === side ? (Math.random() < 0.5 ? "white" : "black") : side;
-
     const options = {
-      side: startingSide,
+      ...generateBoardOptions({ side, timeControl, increment }),
       difficulty,
-      timeControl: parseInt(timeControl),
-
-      players: {
-        white: startingSide === "white" ? "Player" : "Computer",
-        black: startingSide === "black" ? "Player" : "Computer",
-      },
     };
-
-    if (increment) {
-      options.increment = parseInt(increment);
-    }
 
     setGameOptions(options);
     setLoading(false);

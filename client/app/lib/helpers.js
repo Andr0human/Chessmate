@@ -34,15 +34,23 @@ export const generateRoomId = () => {
 };
 
 export const generateBoardOptions = ({ side, timeControl, increment }) => {
-  return {
-    side,
-    timeControl,
-    increment,
+  const startingSide =
+    side === "random" ? (Math.random() < 0.5 ? "white" : "black") : side;
+
+  const options = {
+    side: startingSide,
+    timeControl: parseInt(timeControl),
     players: {
-      white: side === "white" ? "Player1" : "Player2",
-      black: side === "black" ? "Player1" : "Player2",
+      white: startingSide === "white" ? "Player1" : "Player2",
+      black: startingSide === "black" ? "Player1" : "Player2",
     },
   };
+
+  if (increment) {
+    options.increment = parseInt(increment);
+  }
+
+  return options;
 };
 
 export const generateStars = (numStars = 100) => {
