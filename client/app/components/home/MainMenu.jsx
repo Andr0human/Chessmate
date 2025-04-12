@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { CHESS_PIECES } from "../../lib/constants";
 import { StartOptionModal } from "../../modals";
-
-const chessPieces = ["♟", "♞", "♝", "♜", "♛", "♚"];
 
 const MainMenu = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -68,7 +67,7 @@ const MainMenu = () => {
         </div>
 
         <div className="chess-pieces-decoration">
-          {chessPieces.map((piece) => (
+          {CHESS_PIECES.map((piece) => (
             <span key={piece}>{piece}</span>
           ))}
         </div>
