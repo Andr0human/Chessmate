@@ -23,13 +23,10 @@ export default function MultiplayerPage() {
   useEffect(() => {
     const { side, timeControl, increment } = gameOptions?.board || {};
 
-    const startingSide =
-      side === "random" ? (Math.random() < 0.5 ? "white" : "black") : side;
-
     const newBoardOptions = generateBoardOptions({
-      side: startingSide,
-      timeControl: parseInt(timeControl),
-      increment: parseInt(increment)
+      side,
+      timeControl,
+      increment,
     });
 
     setGameOptions((prev) => ({
@@ -49,7 +46,6 @@ export default function MultiplayerPage() {
       // By default it should try to join game first, if that fails it means there is no existing room thus it means we have to create the room.
       // Check for flag createRoom, if this flag is false, that suggest we have not arrived at this page from main menu but rather through direct link, avoid creating room because time controls, side to start has not setup.
       // If createRoom flag found, that means we have all the gameOptions available to us, create room in this case and wait  for other player to join.
-
     };
 
     if (socket.connected) {
