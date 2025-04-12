@@ -44,3 +44,17 @@ export const generateBoardOptions = ({ side, timeControl, increment }) => {
     },
   };
 };
+
+export const generateStars = (numStars = 100) => {
+  const newStars = [];
+  for (let i = 0; i < numStars; i++) {
+    newStars.push({
+      id: i,
+      left: `${Math.random() * numStars}%`,
+      top: `${Math.random() * numStars}%`,
+      size: `${Math.random() * 2 + 1}px`,
+      animationDuration: `${Math.random() * 5 + 5}s`,
+    });
+  }
+  return newStars;
+};

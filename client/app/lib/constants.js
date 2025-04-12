@@ -33,3 +33,5 @@ export const PIECE_SYMBOLS = {
   Q: "♕",
   K: "♔",
 };
+
+export const CHESS_PIECES = ["♟", "♞", "♝", "♜", "♛", "♚"];

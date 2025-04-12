@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-
+import { generateStars } from "./lib/helpers";
 // Dynamic import to avoid SSR issues
 const MainMenu = dynamic(() => import("./components/home/MainMenu"), {
   ssr: false,
@@ -12,37 +12,22 @@ export default function Home() {
   const [stars, setStars] = useState([]);
 
   useEffect(() => {
-    // Generate random stars for background
-    const generateStars = () => {
-      const newStars = [];
-      for (let i = 0; i < 100; i++) {
-        newStars.push({
-          id: i,
-          left: `${Math.random() * 100}%`,
-          top: `${Math.random() * 100}%`,
-          size: `${Math.random() * 2 + 1}px`,
-          animationDuration: `${Math.random() * 5 + 5}s`,
-        });
-      }
-      setStars(newStars);
-    };
-
-    generateStars();
-  }, []);
+    setStars(generateStars(100));
+  }, [generateStars]);
 
   return (
     <main className="min-h-screen flex flex-col relative overflow-hidden">
       <div className="absolute inset-0 z-0">
-        {stars.map((star) => (
+        {stars.map(({ id, left, top, size, animationDuration }) => (
           <div
-            key={star.id}
+            key={id}
             className="absolute rounded-full bg-white opacity-50 animate-pulse"
             style={{
-              left: star.left,
-              top: star.top,
-              width: star.size,
-              height: star.size,
-              animationDuration: star.animationDuration,
+              left,
+              top,
+              width: size,
+              height: size,
+              animationDuration,
             }}
           />
         ))}
