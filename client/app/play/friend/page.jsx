@@ -4,7 +4,7 @@ import { MantineProvider } from "@mantine/core";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useGameOptions } from "../../context/GameOptionsContext";
+import { useGameOptions } from "../../context";
 import { generateBoardOptions } from "../../lib/helpers";
 import { GameStatusModal } from "../../modals";
 import { socket } from "../../services";

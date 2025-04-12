@@ -1,0 +1,21 @@
+import { Request, Response } from "express";
+import { SystemResponse } from "../../lib/response-handler";
+import { checkGameRoomExists } from "./helpers";
+
+class GameController {
+  static checkRoomAvailability = (req: Request, res: Response): void => {
+    try {
+      const { roomId } = req.params;
+      const available: boolean = checkGameRoomExists(roomId);
+
+      new SystemResponse(res, "Room availability checked", { available }).ok();
+    } catch (error: unknown) {
+      console.error("Error checking room availability", error);
+      new SystemResponse(res, "Error checking room availability", {
+        error,
+      }).internalServerError();
+    }
+  };
+}
+
+export default GameController;

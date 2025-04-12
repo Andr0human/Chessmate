@@ -1,8 +1,5 @@
 import { Socket } from "socket.io";
-import { GameRoom } from "./entities";
-import { inverseSide } from "./helpers";
-
-const gameRooms: Map<string, GameRoom> = new Map();
+import { gameRooms, inverseSide } from "./helpers";
 
 export default function registerGameSocketHandlers(socket: Socket) {
   socket.on("room_create", (roomId: string, gameOptions: any) => {
@@ -53,8 +50,8 @@ export default function registerGameSocketHandlers(socket: Socket) {
         increment: gameOptions.increment,
       },
     });
-    socket.to(roomId).emit("player_joined", { id: socket.id });
 
+    socket.to(roomId).emit("player_joined", { id: socket.id });
     console.log(`Room ${roomId} joined by ${socket.id}`);
   });
 
@@ -89,7 +86,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
       if (room?.creatorId === socket.id) {
         delete room.creatorId;
       }
-      if (room.joinerId === socket.id) {
+      if (room?.joinerId === socket.id) {
         delete room.joinerId;
       }
 

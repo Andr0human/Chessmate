@@ -1,3 +1,4 @@
 import registerGameSocketHandlers from "./socket";
+import gameRouter from "./Router";
 
-export { registerGameSocketHandlers };
+export { registerGameSocketHandlers, gameRouter };
