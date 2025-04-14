@@ -1,6 +1,14 @@
+"use client";
+
 import { Chess } from "chess.js";
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { formatTime, getPieceSymbol, squareToAlgebraic } from "../lib/helpers";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { SIDES } from "../lib/constants";
+import {
+  formatTime,
+  getPieceSymbol,
+  inverseSide,
+  squareToAlgebraic,
+} from "../lib/helpers";
 import { socket } from "../services";
 
 const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
@@ -22,9 +30,9 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   const [clock, setClock] = useState({
     white: 0,
     black: 0,
-    active: "white",
-    upper: { side: "black", name: "" },
-    lower: { side: "white", name: "" },
+    active: SIDES.WHITE,
+    upper: { side: SIDES.BLACK, name: "" },
+    lower: { side: SIDES.WHITE, name: "" },
   });
 
   // Initialize game based on props
@@ -32,15 +40,24 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
     if (!gameOptions) return;
 
     // Set initial board flip based on player side preference
-    if (gameOptions.board.side === "black") {
+    if (gameOptions.board.side === SIDES.BLACK) {
       setBoardFlipped(true);
     }
 
     // Initialize timers if game has time control
     if (gameOptions.board?.timeControl > 0) {
-      const timeInMs = gameOptions.board.timeControl * 60 * 1000;
-      const sideUpper = gameOptions.board.side === "white" ? "black" : "white";
+      const timeInMs = gameOptions.board.timeControl * 1000;
       const sideLower = gameOptions.board.side;
+      const sideUpper = inverseSide(gameOptions.board.side);
+
+      const playerLower = gameOptions.players.find(
+        (player) => player.side === sideLower
+      );
+      const playerUpper = gameOptions.players.find(
+        (player) => player.side === sideUpper
+      );
+
+      console.log("#LOG Players:", { playerLower, playerUpper });
 
       setClock((prev) => ({
         ...prev,
@@ -48,11 +65,11 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
         black: timeInMs,
         upper: {
           side: sideUpper,
-          name: gameOptions.board.players[sideUpper],
+          name: playerUpper.name,
         },
         lower: {
           side: sideLower,
-          name: gameOptions.board.players[sideLower],
+          name: playerLower.name,
         },
       }));
     }
@@ -68,7 +85,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
     }
 
     // Start a new timer based on whose turn it is
-    const activeColor = game.turn() === "w" ? "white" : "black";
+    const activeColor = game.turn() === "w" ? SIDES.WHITE : SIDES.BLACK;
     setClock((prev) => ({
       ...prev,
       active: activeColor,
@@ -101,7 +118,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
       // Add increment to player's time if provided
       if (gameOptions.board?.increment > 0) {
         const incrementMs = gameOptions.board.increment * 1000;
-        const playerColor = move.color === "w" ? "white" : "black";
+        const playerColor = move.color === "w" ? SIDES.WHITE : SIDES.BLACK;
 
         setClock((prev) => ({
           ...prev,
@@ -183,7 +200,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Handle piece click or touch
   const handlePieceSelect = useCallback(
     (piece, square) => {
-      const turn = game.turn() === "w" ? "white" : "black";
+      const turn = game.turn() === "w" ? SIDES.WHITE : SIDES.BLACK;
       if (!isGameReady || turn !== gameOptions?.board?.side) return;
 
       // If the same piece is clicked again, deselect it
@@ -206,7 +223,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Handle square click to move selected piece
   const handleSquareClick = useCallback(
     (targetSquare) => {
-      const turn = game.turn() === "w" ? "white" : "black";
+      const turn = game.turn() === "w" ? SIDES.WHITE : SIDES.BLACK;
       if (!isGameReady || turn !== gameOptions?.board?.side) return;
 
       // Prevent duplicate move processing
@@ -239,9 +256,9 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Handle piece dragging start
   const handleDragStart = useCallback(
     (e, piece, square) => {
-      const turn = game.turn() === "w" ? "white" : "black";
+      const turn = game.turn() === "w" ? SIDES.WHITE : SIDES.BLACK;
       if (!isGameReady || turn !== gameOptions?.board?.side) return;
-      
+
       const currentTurn = game.turn();
       // Only allow dragging pieces of the current player's color
       if (piece.color !== currentTurn) return;
@@ -387,7 +404,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
               style={{
                 fontSize: `${squareSize * 0.7}px`,
                 lineHeight: "1",
-                color: piece.color === "w" ? "white" : "black",
+                color: piece.color === "w" ? SIDES.WHITE : SIDES.BLACK,
                 textShadow:
                   piece.color === "w" ? "0 0 1px black" : "0 0 1px white",
                 transition: "transform 0.15s ease-in-out",

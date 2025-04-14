@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { DIFFICULTY_LEVELS, TIME_CONTROLS } from "../lib/constants";
 import { useGameOptions } from "../context/GameOptionsContext";
+import { DIFFICULTY_LEVELS, TIME_CONTROLS } from "../lib/constants";
 import { generateRoomId } from "../lib/helpers";
 
 const StartOptionModal = ({ isOpen, onClose, gameType, basePath }) => {
@@ -24,7 +24,6 @@ const StartOptionModal = ({ isOpen, onClose, gameType, basePath }) => {
         connection: {
           roomId: newRoomId,
           status: "waiting",
-          roomCreated: false,
         },
       });
     }
@@ -34,16 +33,6 @@ const StartOptionModal = ({ isOpen, onClose, gameType, basePath }) => {
 
   const joinGame = async () => {
     onClose();
-
-    setGameOptions({
-      ...gameOptions,
-      connection: {
-        ...gameOptions.connection,
-        status: "waiting",
-        roomCreated: true,
-      },
-    });
-
     router.push(`${basePath}/?roomId=${roomId}`);
   };
 
