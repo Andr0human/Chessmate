@@ -1,4 +1,4 @@
-import { FILES, PIECE_SYMBOLS, RANKS } from "./constants";
+import { FILES, PIECE_SYMBOLS, RANKS, SIDES } from "./constants";
 
 export const formatTime = (timeMs) => {
   const totalSeconds = Math.floor(timeMs / 1000);
@@ -33,17 +33,11 @@ export const generateRoomId = () => {
   return result;
 };
 
-export const generateBoardOptions = ({ side, timeControl, increment }) => {
-  const startingSide =
-    side === "random" ? (Math.random() < 0.5 ? "white" : "black") : side;
-
+export const generateBoardOptions = ({ side, timeControl, increment, fen }) => {
   const options = {
-    side: startingSide,
+    side,
     timeControl: parseInt(timeControl),
-    players: {
-      white: startingSide === "white" ? "Player1" : "Player2",
-      black: startingSide === "black" ? "Player1" : "Player2",
-    },
+    fen,
   };
 
   if (increment) {
@@ -65,4 +59,8 @@ export const generateStars = (numStars = 100) => {
     });
   }
   return newStars;
+};
+
+export const inverseSide = (side) => {
+  return side === SIDES.WHITE ? SIDES.BLACK : SIDES.WHITE;
 };

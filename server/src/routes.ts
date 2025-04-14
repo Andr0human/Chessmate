@@ -7,7 +7,7 @@ const router: Router = Router();
 
 router.get("/health", HealthController.check);
 
-router.use("/game", gameRouter);
+router.use("/api/game", gameRouter);
 
 // Handles '404 not found'
 router.use(ErrorHandlerMiddleware.notFound);

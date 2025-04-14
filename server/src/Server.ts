@@ -1,5 +1,7 @@
+import cors from "cors";
 import express from "express";
 import http from "http";
+import morgan from "morgan";
 import { Socket, Server as SocketIOServer } from "socket.io";
 import { IServerConfig } from "./config";
 import { registerGameSocketHandlers } from "./module/game";
@@ -21,6 +23,7 @@ class Server {
 
     this.app = express();
     this.httpServer = http.createServer(this.app);
+    this.configureMiddlewares();
     this.setupRoutes();
 
     this.io = new SocketIOServer(this.httpServer, {
@@ -39,8 +42,13 @@ class Server {
     return Server.instance;
   }
 
-  private setupRoutes = () => {
+  private configureMiddlewares(): void {
     this.app.use(express.json());
+    this.app.use(cors());
+    this.app.use(morgan("dev"));
+  }
+
+  private setupRoutes = () => {
     this.app.use(router);
   };
 
