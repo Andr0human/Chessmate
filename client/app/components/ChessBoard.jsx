@@ -11,9 +11,9 @@ import {
 } from "../lib/helpers";
 import { socket } from "../services";
 
-const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
+const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
   // State management
-  const [game, setGame] = useState(new Chess());
+  const [game, setGame] = useState(new Chess(gameOptions.board.fen));
   const [boardPosition, setBoardPosition] = useState(game.board());
   const [draggingPiece, setDraggingPiece] = useState(null);
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -38,6 +38,8 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Initialize game based on props
   useEffect(() => {
     if (!gameOptions) return;
+
+    console.log("#LOG Game options in ChessBoard:", gameOptions);
 
     // Set initial board flip based on player side preference
     if (gameOptions.board.side === SIDES.BLACK) {
@@ -113,7 +115,11 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
       setLegalMoves([]);
       setDraggingPiece(null);
 
-      socket.emit("move_sent", JSON.stringify(move), roomId);
+      socket.emit("move_sent", roomId, {
+        move: move.san,
+        socketId: socket.id,
+        fenAfterMove: game.fen(),
+      });
 
       // Add increment to player's time if provided
       if (gameOptions.board?.increment > 0) {
@@ -134,17 +140,17 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
     socket.on("move_received", (moveData) => {
       console.log("New move received:", moveData);
 
-      // Parse the move from the received string
-      const parsedMove = JSON.parse(moveData);
+      const { move, board } = moveData;
 
       // Attempt to make the move on the game state
-      const moveResult = game.move(parsedMove);
+      const moveResult = game.move(move);
 
       if (moveResult) {
         // If the move was successful, update the board position
         setBoardPosition(game.board());
+        updateFen(board.fen);
       } else {
-        console.error("Invalid move received:", parsedMove);
+        console.error("Invalid move received:", move);
       }
     });
 
@@ -178,7 +184,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   }, []);
 
   // Flip the board
-  const flipBoard = useCallback(() => {
+  const flipBoard = () => {
     setBoardFlipped((prev) => !prev);
 
     setClock((prev) => ({
@@ -186,7 +192,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
       upper: { ...prev.lower },
       lower: { ...prev.upper },
     }));
-  }, []);
+  };
 
   // Get legal moves for a piece at a specific square
   const getLegalMovesForSquare = useCallback(
