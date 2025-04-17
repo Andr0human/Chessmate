@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import logger from "../logger";
 import { SystemResponse } from "../response-handler";
 
 class ErrorHandlerMiddlerware {
@@ -8,7 +9,7 @@ class ErrorHandlerMiddlerware {
     res: Response,
     next: NextFunction
   ): void => {
-    console.error("Error handle middleware", err);
+    logger.error("Error handle middleware", err);
     new SystemResponse(res, "some error occured!", err).internalServerError();
     next();
   };

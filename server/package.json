@@ -19,7 +19,8 @@
     "express": "^5.1.0",
     "morgan": "^1.10.0",
     "socket.io": "^4.8.1",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

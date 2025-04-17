@@ -4,6 +4,7 @@ import http from "http";
 import morgan from "morgan";
 import { Socket, Server as SocketIOServer } from "socket.io";
 import { IServerConfig } from "./config";
+import logger from "./lib/logger";
 import { registerGameSocketHandlers } from "./module/game";
 import router from "./routes";
 
@@ -54,14 +55,14 @@ class Server {
 
   public run = () => {
     this.io.on("connection", (socket: Socket) => {
-      console.log(`socket connected ${socket.id}`);
+      logger.info(`socket connected ${socket.id}`);
 
       registerGameSocketHandlers(socket);
     });
 
     this.httpServer.listen(this.config.port, () => {
       const { port } = this.config;
-      console.log(`Server running on port ${port}`);
+      logger.info(`Server running on port ${port}`);
     });
   };
 }
