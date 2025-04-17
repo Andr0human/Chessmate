@@ -23,13 +23,12 @@ export default function MultiplayerPage() {
   const setStartPosition = (roomId, socketId, startOptions, joined = false) => {
     const { board, players } = startOptions;
 
-    const side2move = players.find((player) => player.id === socketId)?.side;
-
     setGameOptions({
-      board: generateBoardOptions({ ...board, side: side2move }),
+      board: generateBoardOptions(board),
       connection: {
         roomId,
         status: joined ? "playing" : "waiting",
+        mySocketId: socketId,
       },
       players,
     });
@@ -46,21 +45,24 @@ export default function MultiplayerPage() {
     socket.on("room_joined", (roomId, startOptions) => {
       console.log("#LOG Room joined:", { roomId, startOptions });
 
-      console.log("#LOG new fen:", startOptions.board.fen);
-
       setStartPosition(roomId, socket.id, startOptions, true);
     });
 
     socket.on("player_joined", (startOptions) => {
       console.log("#LOG Player joined:", { myID: socket.id, startOptions });
 
-      setStartPosition(gameOptions.connection.roomId, socket.id, startOptions, true);
+      setStartPosition(
+        gameOptions.connection.roomId,
+        socket.id,
+        startOptions,
+        true
+      );
     });
 
     socket.on("room_error", (error) => {
       console.log("#LOG Room error event:", error);
       alert(`Error: ${error.message}`);
-      router.push("/play");
+      router.push("/");
     });
 
     return () => {

@@ -15,6 +15,7 @@ export const GameOptionsProvider = ({ children }) => {
     },
     connection: {
       roomId: null,
+      mySocketId: null,
       status: "", // waiting | playing | ended
     },
     players: [

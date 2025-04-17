@@ -24,13 +24,11 @@ export default function registerGameSocketHandlers(socket: Socket) {
         name: socket.id,
         side: gameOptions.side,
         timeLeft: gameOptions.timeControl,
-        lastTimeStamped: Date.now(),
       },
       {
         name: "Player 2",
         side: inverseSide(gameOptions.side),
         timeLeft: gameOptions.timeControl,
-        lastTimeStamped: Date.now(),
       },
     ];
 
@@ -39,6 +37,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
       status: IStatus.WAITING,
       players,
       board,
+      lastTimeStamp: Date.now(),
     });
 
     console.log(`Room created: ${roomId} by ${socket.id}`);
@@ -64,6 +63,9 @@ export default function registerGameSocketHandlers(socket: Socket) {
       }
     });
 
+    if (room.status === IStatus.WAITING) {
+      room.lastTimeStamp = Date.now();
+    }
     room.status = IStatus.PLAYING;
     gameRooms.set(roomId, room);
 
@@ -71,6 +73,15 @@ export default function registerGameSocketHandlers(socket: Socket) {
       board: room.board,
       players: room.players,
     };
+
+    const currentTime = Date.now();
+    newOptions.players.forEach((player: IPlayer) => {
+      if (newOptions.board.side2move === player.side) {
+        const elapsedSeconds = (currentTime - room.lastTimeStamp) / 1000;
+        player.timeLeft = Math.max(0, player.timeLeft - elapsedSeconds);
+        room.lastTimeStamp = currentTime;
+      }
+    });
 
     socket.join(roomId);
     socket.emit("room_joined", roomId, newOptions);
@@ -106,16 +117,15 @@ export default function registerGameSocketHandlers(socket: Socket) {
       return;
     }
 
-    const currentTime = Date.now();
-    let timeLeft =
-      player.timeLeft - (currentTime - player.lastTimeStamped) / 1000;
+    const currentTime: number = Date.now();
+    const elapsedSeconds: number = (currentTime - room.lastTimeStamp) / 1000;
+    let timeLeft: number = Math.max(0, player.timeLeft - elapsedSeconds);
 
     if (room.board.increment > 0) {
       timeLeft += room.board.increment;
     }
 
-    // update board and players
-    player.lastTimeStamped = currentTime;
+    room.lastTimeStamp = currentTime;
     player.timeLeft = timeLeft;
 
     room.board = {
