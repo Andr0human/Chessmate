@@ -15,6 +15,7 @@ export const GameOptionsProvider = ({ children }) => {
     },
     connection: {
       roomId: null,
+      mySocketId: null,
       status: "", // waiting | playing | ended
     },
     players: [
@@ -33,8 +34,14 @@ export const GameOptionsProvider = ({ children }) => {
     ],
   });
 
+  const updateFen = (fen) => {
+    setGameOptions({ ...gameOptions, board: { ...gameOptions.board, fen } });
+  };
+
   return (
-    <GameOptionsContext.Provider value={{ gameOptions, setGameOptions }}>
+    <GameOptionsContext.Provider
+      value={{ gameOptions, setGameOptions, updateFen }}
+    >
       {children}
     </GameOptionsContext.Provider>
   );

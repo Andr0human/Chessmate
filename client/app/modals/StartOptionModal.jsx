@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useGameOptions } from "../context/GameOptionsContext";
 import { DIFFICULTY_LEVELS, TIME_CONTROLS } from "../lib/constants";
 import { generateRoomId } from "../lib/helpers";
+import "../styles/StartOptionModal.css";
 
 const StartOptionModal = ({ isOpen, onClose, gameType, basePath }) => {
   const router = useRouter();

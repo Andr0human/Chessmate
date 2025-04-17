@@ -7,6 +7,7 @@ interface IRoom {
   players: [IPlayer, IPlayer];
   board: IBoard;
   status: IStatus;
+  lastTimeStamp: number;
 }
 
 export default IRoom;

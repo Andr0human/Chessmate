@@ -1,5 +1,7 @@
+import IColor from "./IColor";
+
 interface IStartGameOptions {
-  side: string;
+  side: IColor;
   timeControl: number;
   increment: number;
   difficulty?: string;

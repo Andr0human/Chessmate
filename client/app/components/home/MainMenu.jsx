@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CHESS_PIECES } from "../../lib/constants";
 import { StartOptionModal } from "../../modals";
+import "../../styles/MainMenu.css";
 
 const MainMenu = () => {
   const [isMobile, setIsMobile] = useState(false);

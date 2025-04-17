@@ -16,18 +16,19 @@ const ChessBoard = dynamic(() => import("../../components/ChessBoard"), {
 
 export default function MultiplayerPage() {
   const searchParams = useSearchParams();
-  const { gameOptions, setGameOptions } = useGameOptions();
+  const { gameOptions, setGameOptions, updateFen } = useGameOptions();
   const router = useRouter();
   const roomId = searchParams.get("roomId");
 
-  const setStartPosition = (roomId, startOptions, joined = false) => {
+  const setStartPosition = (roomId, socketId, startOptions, joined = false) => {
     const { board, players } = startOptions;
 
     setGameOptions({
-      board: generateBoardOptions({ ...board, side: board.side2move }),
+      board: generateBoardOptions(board),
       connection: {
         roomId,
         status: joined ? "playing" : "waiting",
+        mySocketId: socketId,
       },
       players,
     });
@@ -38,30 +39,30 @@ export default function MultiplayerPage() {
     socket.on("room_created", (roomId, startOptions) => {
       console.log("#LOG Room created:", { roomId, startOptions });
 
-      setStartPosition(roomId, startOptions);
+      setStartPosition(roomId, socket.id, startOptions);
     });
 
     socket.on("room_joined", (roomId, startOptions) => {
       console.log("#LOG Room joined:", { roomId, startOptions });
 
-      setStartPosition(roomId, startOptions, true);
+      setStartPosition(roomId, socket.id, startOptions, true);
     });
 
-    socket.on("player_joined", ({ id }) => {
-      console.log("#LOG Player joined:", { id });
-      setGameOptions((prev) => ({
-        ...prev,
-        connection: {
-          ...prev.connection,
-          status: "playing",
-        },
-      }));
+    socket.on("player_joined", (startOptions) => {
+      console.log("#LOG Player joined:", { myID: socket.id, startOptions });
+
+      setStartPosition(
+        gameOptions.connection.roomId,
+        socket.id,
+        startOptions,
+        true
+      );
     });
 
     socket.on("room_error", (error) => {
       console.log("#LOG Room error event:", error);
       alert(`Error: ${error.message}`);
-      router.push("/play");
+      router.push("/");
     });
 
     return () => {
@@ -140,6 +141,7 @@ export default function MultiplayerPage() {
           <div className="flex justify-center items-center">
             <ChessBoard
               gameOptions={gameOptions}
+              updateFen={updateFen}
               isGameReady={gameOptions?.connection?.status === "playing"}
               roomId={roomId}
             />
