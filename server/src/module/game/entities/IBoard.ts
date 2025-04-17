@@ -1,5 +1,7 @@
+import IColor from "./IColor";
+
 interface IBoard {
-  side2move: string;
+  side2move: IColor;
   timeControl: number;
   increment: number;
   fen: string;

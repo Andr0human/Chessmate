@@ -1,9 +1,9 @@
-import { IRoom, IStatus } from "./entities";
+import { IColor, IRoom, IStatus } from "./entities";
 
 export const gameRooms: Map<string, IRoom> = new Map();
 
-export const inverseSide = (side: string): string => {
-  return side === "white" ? "black" : "white";
+export const inverseSide = (side: IColor): IColor => {
+  return side === IColor.WHITE ? IColor.BLACK : IColor.WHITE;
 };
 
 export const checkGameRoomExists = (roomId: string): boolean => {

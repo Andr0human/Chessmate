@@ -11,7 +11,7 @@ import {
 } from "../lib/helpers";
 import { socket } from "../services";
 
-const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
+const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
   // State management
   const [game, setGame] = useState(new Chess());
   const [boardPosition, setBoardPosition] = useState(game.board());
@@ -21,6 +21,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   const [processingMove, setProcessingMove] = useState(false);
   const [boardFlipped, setBoardFlipped] = useState(false);
   const [squareSize, setSquareSize] = useState(100);
+  const [playerSide, setPlayerSide] = useState(null);
 
   // Refs
   const boardRef = useRef(null);
@@ -35,45 +36,67 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
     lower: { side: SIDES.WHITE, name: "" },
   });
 
-  // Initialize game based on props
   useEffect(() => {
-    if (!gameOptions) return;
-
-    // Set initial board flip based on player side preference
-    if (gameOptions.board.side === SIDES.BLACK) {
-      setBoardFlipped(true);
-    }
-
-    // Initialize timers if game has time control
-    if (gameOptions.board?.timeControl > 0) {
-      const timeInMs = gameOptions.board.timeControl * 1000;
-      const sideLower = gameOptions.board.side;
-      const sideUpper = inverseSide(gameOptions.board.side);
-
-      const playerLower = gameOptions.players.find(
-        (player) => player.side === sideLower
-      );
-      const playerUpper = gameOptions.players.find(
-        (player) => player.side === sideUpper
+    if (gameOptions?.connection?.status === "playing") {
+      const player = gameOptions.players.find(
+        (player) => player.id === gameOptions.connection.mySocketId
       );
 
-      console.log("#LOG Players:", { playerLower, playerUpper });
+      if (!player) {
+        console.error("Could not find player data for this connection");
+        return;
+      }
 
-      setClock((prev) => ({
-        ...prev,
-        white: timeInMs,
-        black: timeInMs,
-        upper: {
-          side: sideUpper,
-          name: playerUpper.name,
-        },
-        lower: {
-          side: sideLower,
-          name: playerLower.name,
-        },
-      }));
+      setPlayerSide(player.side);
+      setBoardFlipped(player.side === SIDES.BLACK);
+
+      const newGame = new Chess(gameOptions.board.fen);
+      setGame(newGame);
+      setBoardPosition(newGame.board());
+
+      if (gameOptions.board?.timeControl > 0) {
+        const sideLower = player.side;
+        const sideUpper = inverseSide(player.side);
+
+        const playerLower = gameOptions.players.find(
+          (player) => player.side === sideLower
+        );
+        const playerUpper = gameOptions.players.find(
+          (player) => player.side === sideUpper
+        );
+
+        const whitePlayer = gameOptions.players.find(
+          (player) => player.side === SIDES.WHITE
+        );
+        const blackPlayer = gameOptions.players.find(
+          (player) => player.side === SIDES.BLACK
+        );
+
+        const whiteTimeMs = whitePlayer && typeof whitePlayer.timeLeft === 'number' 
+          ? Math.max(0, whitePlayer.timeLeft * 1000) 
+          : gameOptions.board.timeControl * 1000;
+        
+        const blackTimeMs = blackPlayer && typeof blackPlayer.timeLeft === 'number'
+          ? Math.max(0, blackPlayer.timeLeft * 1000)
+          : gameOptions.board.timeControl * 1000;
+
+        setClock((prev) => ({
+          ...prev,
+          white: whiteTimeMs,
+          black: blackTimeMs,
+          active: gameOptions.board.side,
+          upper: {
+            side: sideUpper,
+            name: playerUpper?.name || "Player 2",
+          },
+          lower: {
+            side: sideLower,
+            name: playerLower?.name || "Player 1",
+          },
+        }));
+      }
     }
-  }, [gameOptions]);
+  }, [gameOptions?.connection?.status]);
 
   // Handle timer
   useEffect(() => {
@@ -113,7 +136,11 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
       setLegalMoves([]);
       setDraggingPiece(null);
 
-      socket.emit("move_sent", JSON.stringify(move), roomId);
+      socket.emit("move_sent", roomId, {
+        move: move.san,
+        socketId: socket.id,
+        fenAfterMove: game.fen(),
+      });
 
       // Add increment to player's time if provided
       if (gameOptions.board?.increment > 0) {
@@ -132,19 +159,32 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   // Socket connection and move handling
   useEffect(() => {
     socket.on("move_received", (moveData) => {
-      console.log("New move received:", moveData);
-
-      // Parse the move from the received string
-      const parsedMove = JSON.parse(moveData);
+      const { move, board, players } = moveData;
 
       // Attempt to make the move on the game state
-      const moveResult = game.move(parsedMove);
+      const moveResult = game.move(move);
 
       if (moveResult) {
         // If the move was successful, update the board position
         setBoardPosition(game.board());
+        updateFen(board.fen);
+        
+        // Update player clocks with the latest time information from server
+        if (players && board.timeControl > 0) {
+          const whitePlayer = players.find(player => player.side === SIDES.WHITE);
+          const blackPlayer = players.find(player => player.side === SIDES.BLACK);
+          
+          if (whitePlayer && blackPlayer) {
+            setClock(prev => ({
+              ...prev,
+              white: whitePlayer.timeLeft * 1000,
+              black: blackPlayer.timeLeft * 1000,
+              active: board.side2move
+            }));
+          }
+        }
       } else {
-        console.error("Invalid move received:", parsedMove);
+        console.error("Invalid move received:", move);
       }
     });
 
@@ -178,7 +218,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   }, []);
 
   // Flip the board
-  const flipBoard = useCallback(() => {
+  const flipBoard = () => {
     setBoardFlipped((prev) => !prev);
 
     setClock((prev) => ({
@@ -186,7 +226,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
       upper: { ...prev.lower },
       lower: { ...prev.upper },
     }));
-  }, []);
+  };
 
   // Get legal moves for a piece at a specific square
   const getLegalMovesForSquare = useCallback(
@@ -201,7 +241,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   const handlePieceSelect = useCallback(
     (piece, square) => {
       const turn = game.turn() === "w" ? SIDES.WHITE : SIDES.BLACK;
-      if (!isGameReady || turn !== gameOptions?.board?.side) return;
+      if (!isGameReady || turn !== playerSide) return;
 
       // If the same piece is clicked again, deselect it
       if (selectedSquare === square) {
@@ -224,7 +264,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   const handleSquareClick = useCallback(
     (targetSquare) => {
       const turn = game.turn() === "w" ? SIDES.WHITE : SIDES.BLACK;
-      if (!isGameReady || turn !== gameOptions?.board?.side) return;
+      if (!isGameReady || turn !== playerSide) return;
 
       // Prevent duplicate move processing
       if (processingMove) return;
@@ -257,7 +297,7 @@ const ChessBoard = ({ gameOptions, roomId, isGameReady = true }) => {
   const handleDragStart = useCallback(
     (e, piece, square) => {
       const turn = game.turn() === "w" ? SIDES.WHITE : SIDES.BLACK;
-      if (!isGameReady || turn !== gameOptions?.board?.side) return;
+      if (!isGameReady || turn !== playerSide) return;
 
       const currentTurn = game.turn();
       // Only allow dragging pieces of the current player's color

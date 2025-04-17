@@ -1,7 +1,9 @@
+import IColor from "./IColor";
+
 interface IPlayer {
   id?: string;
   name: string;
-  side: string;
+  side: IColor;
   timeLeft: number;
 }
 
