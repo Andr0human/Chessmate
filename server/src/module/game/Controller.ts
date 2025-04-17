@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import logger from "../../lib/logger";
 import { SystemResponse } from "../../lib/response-handler";
 import { checkGameRoomExists } from "./helpers";
 
@@ -10,7 +11,8 @@ class GameController {
 
       new SystemResponse(res, "Room availability checked", { available }).ok();
     } catch (error: unknown) {
-      console.error("Error checking room availability", error);
+      logger.error("Error checking room availability", error);
+
       new SystemResponse(res, "Error checking room availability", {
         error,
       }).internalServerError();
