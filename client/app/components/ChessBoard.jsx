@@ -9,6 +9,7 @@ import {
   inverseSide,
   squareToAlgebraic,
 } from "../lib/helpers";
+import { PromotionModal } from "../modals";
 import { socket } from "../services";
 
 const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
@@ -22,6 +23,10 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
   const [boardFlipped, setBoardFlipped] = useState(false);
   const [squareSize, setSquareSize] = useState(100);
   const [playerSide, setPlayerSide] = useState(null);
+
+  // Promotion modal state
+  const [promotionMove, setPromotionMove] = useState(null);
+  const [showPromotionModal, setShowPromotionModal] = useState(false);
 
   // Refs
   const boardRef = useRef(null);
@@ -72,13 +77,15 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
           (player) => player.side === SIDES.BLACK
         );
 
-        const whiteTimeMs = whitePlayer && typeof whitePlayer.timeLeft === 'number' 
-          ? Math.max(0, whitePlayer.timeLeft * 1000) 
-          : gameOptions.board.timeControl * 1000;
-        
-        const blackTimeMs = blackPlayer && typeof blackPlayer.timeLeft === 'number'
-          ? Math.max(0, blackPlayer.timeLeft * 1000)
-          : gameOptions.board.timeControl * 1000;
+        const whiteTimeMs =
+          whitePlayer && typeof whitePlayer.timeLeft === "number"
+            ? Math.max(0, whitePlayer.timeLeft * 1000)
+            : gameOptions.board.timeControl * 1000;
+
+        const blackTimeMs =
+          blackPlayer && typeof blackPlayer.timeLeft === "number"
+            ? Math.max(0, blackPlayer.timeLeft * 1000)
+            : gameOptions.board.timeControl * 1000;
 
         setClock((prev) => ({
           ...prev,
@@ -168,18 +175,22 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
         // If the move was successful, update the board position
         setBoardPosition(game.board());
         updateFen(board.fen);
-        
+
         // Update player clocks with the latest time information from server
         if (players && board.timeControl > 0) {
-          const whitePlayer = players.find(player => player.side === SIDES.WHITE);
-          const blackPlayer = players.find(player => player.side === SIDES.BLACK);
-          
+          const whitePlayer = players.find(
+            (player) => player.side === SIDES.WHITE
+          );
+          const blackPlayer = players.find(
+            (player) => player.side === SIDES.BLACK
+          );
+
           if (whitePlayer && blackPlayer) {
-            setClock(prev => ({
+            setClock((prev) => ({
               ...prev,
               white: whitePlayer.timeLeft * 1000,
               black: blackPlayer.timeLeft * 1000,
-              active: board.side2move
+              active: board.side2move,
             }));
           }
         }
@@ -260,6 +271,42 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
     [game, getLegalMovesForSquare, selectedSquare, isGameReady]
   );
 
+  // Handle promotion piece selection
+  const handlePromotionSelect = useCallback(
+    (pieceType) => {
+      if (!promotionMove) return;
+
+      const { from, to } = promotionMove;
+      try {
+        // Attempt to make the move with the selected promotion piece
+        const move = game.move({
+          from,
+          to,
+          promotion: pieceType,
+        });
+
+        if (move) playMove(move);
+      } catch (error) {
+        console.error("Invalid promotion move:", error);
+      } finally {
+        setShowPromotionModal(false);
+        setPromotionMove(null);
+        setProcessingMove(false);
+      }
+    },
+    [game, playMove, promotionMove]
+  );
+
+  // Handle closing the promotion modal without making a move
+  const handleCancelPromotion = useCallback(() => {
+    setShowPromotionModal(false);
+    setPromotionMove(null);
+    setProcessingMove(false);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setDraggingPiece(null);
+  }, []);
+
   // Handle square click to move selected piece
   const handleSquareClick = useCallback(
     (targetSquare) => {
@@ -272,25 +319,50 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
       if (selectedSquare && legalMoves.includes(targetSquare)) {
         setProcessingMove(true);
         try {
-          // Attempt to make the move
+          // Check if this is a pawn promotion move
+          const sourceSquare = selectedSquare;
+          const piece = game.get(sourceSquare);
+          const isPromotion =
+            piece &&
+            piece.type === "p" &&
+            ((piece.color === "w" && targetSquare[1] === "8") ||
+              (piece.color === "b" && targetSquare[1] === "1"));
+
+          if (isPromotion) {
+            // Store the move details and show the promotion modal
+            setPromotionMove({ from: sourceSquare, to: targetSquare });
+            setShowPromotionModal(true);
+            return;
+          }
+
+          // Regular move
           const move = game.move({
-            from: selectedSquare,
+            from: sourceSquare,
             to: targetSquare,
-            promotion: "q", // Always promote to queen for simplicity
           });
 
           if (move) playMove(move);
         } catch (error) {
           console.error("Invalid move:", error);
         } finally {
-          // Reset the processing flag
-          setTimeout(() => {
-            setProcessingMove(false);
-          }, 100);
+          // Only reset processing if not showing the promotion modal
+          if (!showPromotionModal) {
+            setTimeout(() => {
+              setProcessingMove(false);
+            }, 100);
+          }
         }
       }
     },
-    [game, legalMoves, playMove, processingMove, selectedSquare, isGameReady]
+    [
+      game,
+      legalMoves,
+      playMove,
+      processingMove,
+      selectedSquare,
+      isGameReady,
+      showPromotionModal,
+    ]
   );
 
   // Handle piece dragging start
@@ -325,24 +397,48 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
       const { square: sourceSquare } = draggingPiece;
 
       try {
-        // Attempt to make the move
+        // Check if this is a pawn promotion move
+        const piece = game.get(sourceSquare);
+        const isPromotion =
+          piece &&
+          piece.type === "p" &&
+          ((piece.color === "w" && targetSquare[1] === "8") ||
+            (piece.color === "b" && targetSquare[1] === "1"));
+
+        if (isPromotion) {
+          // Store the move details and show the promotion modal
+          setPromotionMove({ from: sourceSquare, to: targetSquare });
+          setShowPromotionModal(true);
+          return;
+        }
+
+        // Regular move (non-promotion)
         const move = game.move({
           from: sourceSquare,
           to: targetSquare,
-          promotion: "q", // Always promote to queen for simplicity
+          promotion: "q", // Fallback, shouldn't be used due to check above
         });
 
         if (move) playMove(move);
       } catch (error) {
         console.error("Invalid move:", error);
       } finally {
-        // Reset the processing flag after a short delay
-        setTimeout(() => {
-          setProcessingMove(false);
-        }, 100);
+        // Only reset processing if not showing the promotion modal
+        if (!showPromotionModal) {
+          setTimeout(() => {
+            setProcessingMove(false);
+          }, 100);
+        }
       }
     },
-    [draggingPiece, game, playMove, processingMove, isGameReady]
+    [
+      draggingPiece,
+      game,
+      playMove,
+      processingMove,
+      isGameReady,
+      showPromotionModal,
+    ]
   );
 
   // Allow dropping
@@ -576,6 +672,13 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
           </div>
         </div>
       </div>
+
+      <PromotionModal
+        isOpen={showPromotionModal}
+        onClose={handleCancelPromotion}
+        onSelectPiece={handlePromotionSelect}
+        playerColor={playerSide}
+      />
     </div>
   );
 };
