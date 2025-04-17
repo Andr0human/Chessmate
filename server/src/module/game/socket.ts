@@ -1,4 +1,5 @@
 import { Socket } from "socket.io";
+import logger from "../../lib/logger";
 import {
   IBoard,
   IColor,
@@ -40,7 +41,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
       lastTimeStamp: Date.now(),
     });
 
-    console.log(`Room created: ${roomId} by ${socket.id}`);
+    logger.info(`Room created: ${roomId} by ${socket.id}`);
     socket.join(roomId);
     socket.emit("room_created", roomId, {
       board,
@@ -87,14 +88,14 @@ export default function registerGameSocketHandlers(socket: Socket) {
     socket.emit("room_joined", roomId, newOptions);
 
     socket.to(roomId).emit("player_joined", newOptions);
-    console.log(`Room ${roomId} joined by ${socket.id}`);
+    logger.info(`Room ${roomId} joined by ${socket.id}`);
   });
 
   socket.on("move_sent", (roomId: string, moveUpdate: IMoveUpdate) => {
     const { move, socketId, fenAfterMove }: IMoveUpdate = moveUpdate;
 
-    console.log(`move_sent: ${move} in room ${roomId}`);
-    console.log("moveUpdate", moveUpdate);
+    logger.info(`move_sent: ${move} in room ${roomId}`);
+    logger.info("moveUpdate", moveUpdate);
 
     const room: IRoom | undefined = gameRooms.get(roomId);
 
@@ -135,7 +136,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
     };
     gameRooms.set(roomId, room);
 
-    console.log(`sending move ${move} to room ${roomId}`);
+    logger.info(`sending move ${move} to room ${roomId}`);
     socket.to(roomId).emit("move_received", {
       move,
       board: room.board,
@@ -144,7 +145,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
   });
 
   socket.on("disconnect", () => {
-    console.log(`socket disconnected ${socket.id}`);
+    logger.info(`socket disconnected ${socket.id}`);
 
     for (const [roomId, room] of gameRooms.entries()) {
       const player: IPlayer | undefined = room.players.find(
