@@ -94,7 +94,7 @@ export default function MultiplayerPage() {
         if (gameOptions.connection.status === "waiting") {
           socket.emit("room_create", roomId, boardOptions);
         } else {
-          alert("Cannot create a new room due to no game parameters");
+          alert(`Room "${roomId}" is not available! Please try again.`);
           router.push("/");
         }
       }
