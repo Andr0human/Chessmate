@@ -144,6 +144,84 @@ export default function registerGameSocketHandlers(socket: Socket) {
     });
   });
 
+  // Handle draw offer
+  socket.on("offer_draw", (roomId: string) => {
+    const room: IRoom | undefined = gameRooms.get(roomId);
+
+    if (!room) {
+      socket.emit("room_error", { message: "Room not found" });
+      return;
+    }
+
+    if (room.status !== IStatus.PLAYING) {
+      socket.emit("room_error", { message: "No game in progress" });
+      return;
+    }
+
+    logger.info(`Draw offered in room ${roomId} by ${socket.id}`);
+    socket.to(roomId).emit("draw_offered", socket.id);
+  });
+
+  // Handle draw acceptance
+  socket.on("accept_draw", (roomId: string) => {
+    const room: IRoom | undefined = gameRooms.get(roomId);
+
+    if (!room) {
+      socket.emit("room_error", { message: "Room not found" });
+      return;
+    }
+
+    if (room.status !== IStatus.PLAYING) {
+      socket.emit("room_error", { message: "No game in progress" });
+      return;
+    }
+
+    logger.info(`Draw accepted in room ${roomId}`);
+    gameRooms.delete(roomId);
+
+    // Notify all clients in the room about the draw
+    socket.to(roomId).emit("draw_accepted");
+  });
+
+  // Handle draw rejection
+  socket.on("reject_draw", (roomId: string) => {
+    const room: IRoom | undefined = gameRooms.get(roomId);
+
+    if (!room) {
+      socket.emit("room_error", { message: "Room not found" });
+      return;
+    }
+
+    if (room.status !== IStatus.PLAYING) {
+      socket.emit("room_error", { message: "No game in progress" });
+      return;
+    }
+
+    logger.info(`Draw rejected in room ${roomId}`);
+    socket.to(roomId).emit("draw_rejected");
+  });
+
+  // Handle resignation
+  socket.on("resign_game", (roomId: string) => {
+    const room: IRoom | undefined = gameRooms.get(roomId);
+
+    if (!room) {
+      socket.emit("room_error", { message: "Room not found" });
+      return;
+    }
+
+    if (room.status !== IStatus.PLAYING) {
+      socket.emit("room_error", { message: "No game in progress" });
+      return;
+    }
+
+    logger.info(`Game resigned in room ${roomId} by ${socket.id}`);
+    gameRooms.delete(roomId);
+
+    // Notify all clients in the room about the resignation
+    socket.to(roomId).emit("game_resigned", socket.id);
+  });
+
   socket.on("disconnect", () => {
     logger.info(`socket disconnected ${socket.id}`);
 
