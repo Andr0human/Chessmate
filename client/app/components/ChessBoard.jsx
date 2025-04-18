@@ -9,7 +9,7 @@ import {
   inverseSide,
   squareToAlgebraic,
 } from "../lib/helpers";
-import { GameOverModal, PromotionModal } from "../modals";
+import { DrawOfferModal, GameOverModal, PromotionModal } from "../modals";
 import { socket } from "../services";
 
 const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
@@ -27,6 +27,10 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
   // Promotion modal state
   const [promotionMove, setPromotionMove] = useState(null);
   const [showPromotionModal, setShowPromotionModal] = useState(false);
+
+  // Draw offer modal state
+  const [showDrawOfferModal, setShowDrawOfferModal] = useState(false);
+  const [drawOfferedBy, setDrawOfferedBy] = useState(null);
 
   // Game over state
   const [gameOver, setGameOver] = useState(false);
@@ -276,11 +280,56 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
       }
     });
 
-    // Clean up the socket listener on component unmount
+    // Handle draw offer
+    socket.on("draw_offered", (offeredBySocketId) => {
+      // Find player who offered the draw
+      const offeringPlayer = gameOptions.players.find(
+        (player) => player.id === offeredBySocketId
+      );
+      
+      setDrawOfferedBy(offeringPlayer?.name || "Opponent");
+      setShowDrawOfferModal(true);
+    });
+
+    // Handle draw accepted
+    socket.on("draw_accepted", () => {
+      setGameResult("draw");
+      setGameWinner("agreement");
+      setGameOver(true);
+      setShowDrawOfferModal(false);
+    });
+
+    // Handle draw rejected
+    socket.on("draw_rejected", () => {
+      // Just hide the modal for the player who offered the draw
+      setShowDrawOfferModal(false);
+    });
+
+    // Handle resignation
+    socket.on("game_resigned", (resignedSocketId) => {
+      const resigningPlayer = gameOptions.players.find(
+        (player) => player.id === resignedSocketId
+      );
+      
+      if (resigningPlayer) {
+        const resigningSide = resigningPlayer.side;
+        const winningSide = inverseSide(resigningSide);
+        
+        setGameResult("resignation");
+        setGameWinner(winningSide);
+        setGameOver(true);
+      }
+    });
+
+    // Clean up the socket listeners on component unmount
     return () => {
       socket.off("move_received");
+      socket.off("draw_offered");
+      socket.off("draw_accepted");
+      socket.off("draw_rejected");
+      socket.off("game_resigned");
     };
-  }, [game]);
+  }, [game, gameOptions.players]);
 
   // Handle responsive sizing
   useEffect(() => {
@@ -691,6 +740,36 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
     [clock, gameOptions.board?.timeControl, isGameReady]
   );
 
+  // Handle draw offer acceptance
+  const handleAcceptDraw = useCallback(() => {
+    socket.emit("accept_draw", roomId);
+    setShowDrawOfferModal(false);
+    setGameResult("draw");
+    setGameWinner("agreement");
+    setGameOver(true);
+  }, [roomId]);
+
+  // Handle draw offer rejection
+  const handleRejectDraw = useCallback(() => {
+    socket.emit("reject_draw", roomId);
+    setShowDrawOfferModal(false);
+  }, [roomId]);
+
+  // Handle offering a draw
+  const handleOfferDraw = useCallback(() => {
+    socket.emit("offer_draw", roomId);
+  }, [roomId]);
+
+  // Handle resignation
+  const handleResign = useCallback(() => {
+    const resigningSide = playerSide;
+    const winningSide = inverseSide(resigningSide);
+    setGameResult("resignation");
+    setGameWinner(winningSide);
+    setGameOver(true);
+    socket.emit("resign_game", roomId);
+  }, [playerSide, roomId]);
+
   return (
     <div className="flex flex-col xl:flex-row gap-6">
       <div className="chess-game-container">
@@ -722,12 +801,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
             isGameReady ? "hover:bg-green-700" : "opacity-50 cursor-not-allowed"
           }`}
           disabled={!isGameReady || gameOver}
-          onClick={() => {
-            setGameResult("draw");
-            setGameWinner("agreement");
-            setGameOver(true);
-            socket.emit("offer_draw_accepted", roomId);
-          }}
+          onClick={handleOfferDraw}
         >
           Offer Draw
         </button>
@@ -737,14 +811,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
             isGameReady ? "hover:bg-red-700" : "opacity-50 cursor-not-allowed"
           }`}
           disabled={!isGameReady || gameOver}
-          onClick={() => {
-            const resigningSide = playerSide;
-            const winningSide = inverseSide(resigningSide);
-            setGameResult("resignation");
-            setGameWinner(winningSide);
-            setGameOver(true);
-            socket.emit("resign_game", roomId);
-          }}
+          onClick={handleResign}
         >
           Resign
         </button>
@@ -780,6 +847,13 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
         result={gameResult}
         winner={gameWinner}
         onMainMenu={handleMainMenu}
+      />
+
+      <DrawOfferModal
+        isOpen={showDrawOfferModal}
+        onAccept={handleAcceptDraw}
+        onReject={handleRejectDraw}
+        opponentName={drawOfferedBy}
       />
     </div>
   );
