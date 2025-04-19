@@ -33,12 +33,8 @@ export const generateRoomId = () => {
   return result;
 };
 
-export const generateBoardOptions = ({ side, timeControl, increment, fen }) => {
-  const options = {
-    side,
-    timeControl: parseInt(timeControl),
-    fen,
-  };
+export const generateBoardOptions = ({ timeControl, increment, ...rest }) => {
+  const options = { ...rest, timeControl: parseInt(timeControl) };
 
   if (increment) {
     options.increment = parseInt(increment);
