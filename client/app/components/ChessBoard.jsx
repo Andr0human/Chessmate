@@ -215,6 +215,12 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
       setLegalMoves([]);
       setDraggingPiece(null);
 
+      console.log("#LOG move_sent", roomId, {
+        move: move.san,
+        socketId: socket.id,
+        fenAfterMove: game.fen(),
+      });
+
       socket.emit("move_sent", roomId, {
         move: move.san,
         socketId: socket.id,
