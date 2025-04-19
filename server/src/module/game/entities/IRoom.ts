@@ -1,4 +1,5 @@
 import IBoard from "./IBoard";
+import IGameType from "./IGameType";
 import IPlayer from "./IPlayer";
 import IStatus from "./IStatus";
 
@@ -8,6 +9,7 @@ interface IRoom {
   board: IBoard;
   status: IStatus;
   lastTimeStamp: number;
+  gameType: IGameType;
 }
 
 export default IRoom;

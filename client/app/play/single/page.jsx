@@ -20,7 +20,18 @@ export default function SinglePlayerPage() {
   useEffect(() => {
     socket.on("room_created_singleplayer", (roomId, startOptions) => {
       console.log("#LOG Room created:", roomId, startOptions);
+      const { board, players } = startOptions;
+
       setRoomId(roomId);
+      setGameOptions({
+        board: generateBoardOptions(board),
+        connection: {
+          roomId,
+          status: "playing",
+          mySocketId: socket.id,
+        },
+        players,
+      });
       setLoading(false);
     });
 
