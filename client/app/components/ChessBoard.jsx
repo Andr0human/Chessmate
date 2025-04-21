@@ -50,6 +50,95 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
     lower: { side: SIDES.WHITE, name: "" },
   });
 
+  // Socket connection and move handling
+  useEffect(() => {
+    socket.on("move_received", (moveData) => {
+      const { move, board, players } = moveData;
+
+      console.log("#LOG move_received", move);
+
+      // Attempt to make the move on the game state
+      const moveResult = game.move(move);
+
+      if (moveResult) {
+        // If the move was successful, update the board position
+        setBoardPosition(game.board());
+        updateFen(board.fen);
+
+        // Update player clocks with the latest time information from server
+        if (players && board.timeControl > 0) {
+          const whitePlayer = players.find(
+            (player) => player.side === SIDES.WHITE
+          );
+          const blackPlayer = players.find(
+            (player) => player.side === SIDES.BLACK
+          );
+
+          if (whitePlayer && blackPlayer) {
+            setClock((prev) => ({
+              ...prev,
+              white: whitePlayer.timeLeft * 1000,
+              black: blackPlayer.timeLeft * 1000,
+              active: board.side,
+            }));
+          }
+        }
+      } else {
+        console.error("Invalid move received:", move);
+      }
+    });
+
+    // Handle draw offer
+    socket.on("draw_offered", (offeredBySocketId) => {
+      // Find player who offered the draw
+      const offeringPlayer = gameOptions.players.find(
+        (player) => player.id === offeredBySocketId
+      );
+
+      setDrawOfferedBy(offeringPlayer?.name || "Opponent");
+      setShowDrawOfferModal(true);
+    });
+
+    // Handle draw accepted
+    socket.on("draw_accepted", () => {
+      setGameResult("draw");
+      setGameWinner("agreement");
+      setGameOver(true);
+      setShowDrawOfferModal(false);
+    });
+
+    // Handle draw rejected
+    socket.on("draw_rejected", () => {
+      // Just hide the modal for the player who offered the draw
+      setShowDrawOfferModal(false);
+    });
+
+    // Handle resignation
+    socket.on("game_resigned", (resignedSocketId) => {
+      const resigningPlayer = gameOptions.players.find(
+        (player) => player.id === resignedSocketId
+      );
+
+      if (resigningPlayer) {
+        const resigningSide = resigningPlayer.side;
+        const winningSide = inverseSide(resigningSide);
+
+        setGameResult("resignation");
+        setGameWinner(winningSide);
+        setGameOver(true);
+      }
+    });
+
+    // Clean up the socket listeners on component unmount
+    return () => {
+      socket.off("move_received");
+      socket.off("draw_offered");
+      socket.off("draw_accepted");
+      socket.off("draw_rejected");
+      socket.off("game_resigned");
+    };
+  }, [game, gameOptions.players]);
+
   useEffect(() => {
     if (gameOptions?.connection?.status === "playing") {
       const player = gameOptions.players.find(
@@ -142,7 +231,18 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
         clearInterval(timerInterval.current);
       }
     };
-  }, [game.turn(), gameOptions.board?.timeControl, isGameReady]);
+  }, [gameOptions.board?.side, gameOptions.board?.timeControl, isGameReady]);
+
+  useEffect(() => {
+    const player = gameOptions.players.find(
+      (player) =>
+        player.id === "computer" && player.side === gameOptions.board.side
+    );
+
+    if (player) {
+      socket.emit("request_engine_move", roomId);
+    }
+  }, [gameOptions?.board?.side]);
 
   // Check for game over conditions
   const checkGameOver = useCallback(() => {
@@ -238,6 +338,8 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
         }));
       }
 
+      updateFen(game.fen());
+
       // Check for game over conditions
       checkGameOver();
     },
@@ -249,93 +351,6 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
     // Navigate to main menu
     window.location.href = "/";
   };
-
-  // Socket connection and move handling
-  useEffect(() => {
-    socket.on("move_received", (moveData) => {
-      const { move, board, players } = moveData;
-
-      // Attempt to make the move on the game state
-      const moveResult = game.move(move);
-
-      if (moveResult) {
-        // If the move was successful, update the board position
-        setBoardPosition(game.board());
-        updateFen(board.fen);
-
-        // Update player clocks with the latest time information from server
-        if (players && board.timeControl > 0) {
-          const whitePlayer = players.find(
-            (player) => player.side === SIDES.WHITE
-          );
-          const blackPlayer = players.find(
-            (player) => player.side === SIDES.BLACK
-          );
-
-          if (whitePlayer && blackPlayer) {
-            setClock((prev) => ({
-              ...prev,
-              white: whitePlayer.timeLeft * 1000,
-              black: blackPlayer.timeLeft * 1000,
-              active: board.side2move,
-            }));
-          }
-        }
-      } else {
-        console.error("Invalid move received:", move);
-      }
-    });
-
-    // Handle draw offer
-    socket.on("draw_offered", (offeredBySocketId) => {
-      // Find player who offered the draw
-      const offeringPlayer = gameOptions.players.find(
-        (player) => player.id === offeredBySocketId
-      );
-      
-      setDrawOfferedBy(offeringPlayer?.name || "Opponent");
-      setShowDrawOfferModal(true);
-    });
-
-    // Handle draw accepted
-    socket.on("draw_accepted", () => {
-      setGameResult("draw");
-      setGameWinner("agreement");
-      setGameOver(true);
-      setShowDrawOfferModal(false);
-    });
-
-    // Handle draw rejected
-    socket.on("draw_rejected", () => {
-      // Just hide the modal for the player who offered the draw
-      setShowDrawOfferModal(false);
-    });
-
-    // Handle resignation
-    socket.on("game_resigned", (resignedSocketId) => {
-      const resigningPlayer = gameOptions.players.find(
-        (player) => player.id === resignedSocketId
-      );
-      
-      if (resigningPlayer) {
-        const resigningSide = resigningPlayer.side;
-        const winningSide = inverseSide(resigningSide);
-        
-        setGameResult("resignation");
-        setGameWinner(winningSide);
-        setGameOver(true);
-      }
-    });
-
-    // Clean up the socket listeners on component unmount
-    return () => {
-      socket.off("move_received");
-      socket.off("draw_offered");
-      socket.off("draw_accepted");
-      socket.off("draw_rejected");
-      socket.off("game_resigned");
-    };
-  }, [game, gameOptions.players]);
 
   // Handle responsive sizing
   useEffect(() => {

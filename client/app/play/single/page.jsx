@@ -2,9 +2,10 @@
 
 import { MantineProvider } from "@mantine/core";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useGameOptions } from "../../context";
-import { SIDES } from "../../lib/constants";
+import { DEFAULT_START_OPTIONS, SIDES } from "../../lib/constants";
 import { generateBoardOptions } from "../../lib/helpers";
 import { socket } from "../../services";
 
@@ -16,6 +17,7 @@ export default function SinglePlayerPage() {
   const { gameOptions, setGameOptions, updateFen } = useGameOptions();
   const [loading, setLoading] = useState(true);
   const [roomId, setRoomId] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     socket.on("room_created_singleplayer", (roomId, startOptions) => {
@@ -38,9 +40,17 @@ export default function SinglePlayerPage() {
     socket.on("room_error", (error) => {
       console.log("#LOG Room error event:", error);
       alert(`Error: ${error.message}`);
+      setLoading(false);
+      setGameOptions(DEFAULT_START_OPTIONS);
       router.push("/");
     });
-  }, []);
+
+    // Clean up event listeners on unmount
+    return () => {
+      socket.off("room_created_singleplayer");
+      socket.off("room_error");
+    };
+  }, [router]);
 
   useEffect(() => {
     const { side } = gameOptions?.board || {};
