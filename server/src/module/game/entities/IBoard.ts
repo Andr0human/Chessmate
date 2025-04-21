@@ -1,10 +1,11 @@
 import IColor from "./IColor";
 
 interface IBoard {
-  side2move: IColor;
+  side: IColor;
   timeControl: number;
   increment: number;
   fen: string;
+  difficulty?: string;
 }
 
 export default IBoard;

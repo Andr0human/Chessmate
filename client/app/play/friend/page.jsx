@@ -144,6 +144,7 @@ export default function MultiplayerPage() {
               updateFen={updateFen}
               isGameReady={gameOptions?.connection?.status === "playing"}
               roomId={roomId}
+              gameType="multiplayer"
             />
             <GameStatusModal
               status={gameOptions?.connection?.status}
