@@ -3,7 +3,7 @@
 import { MantineProvider } from "@mantine/core";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useGameOptions } from "../../context";
 import { SIDES } from "../../lib/constants";
 import { generateBoardOptions } from "../../lib/helpers";
@@ -14,7 +14,7 @@ const ChessBoard = dynamic(() => import("../../components/ChessBoard"), {
   ssr: false,
 });
 
-export default function MultiplayerPage() {
+function MultiplayerContent() {
   const searchParams = useSearchParams();
   const { gameOptions, setGameOptions, updateFen } = useGameOptions();
   const router = useRouter();
@@ -154,5 +154,13 @@ export default function MultiplayerPage() {
         </div>
       </div>
     </MantineProvider>
+  );
+}
+
+export default function MultiplayerPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-900 flex items-center justify-center"><p className="text-white text-xl">Loading game...</p></div>}>
+      <MultiplayerContent />
+    </Suspense>
   );
 }
