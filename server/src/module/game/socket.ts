@@ -66,6 +66,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
         timeControl: gameOptions.timeControl,
         increment: gameOptions.increment,
         fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        difficulty: gameOptions?.difficulty,
       };
 
       const players: [IPlayer, IPlayer] = [
@@ -341,7 +342,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
     }
 
     const engine: ChessEngine = ChessEngine.getInstance();
-    const { move, fenAfterMove } = await engine.getMoveObject(room.board.fen);
+    const { move, fenAfterMove } = await engine.getMoveObject(room.board.fen, room.board.difficulty || "expert");
 
     const currentTime: number = Date.now();
     const elapsedSeconds: number = (currentTime - room.lastTimeStamp) / 1000;

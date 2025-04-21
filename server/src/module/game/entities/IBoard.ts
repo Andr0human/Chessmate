@@ -5,6 +5,7 @@ interface IBoard {
   timeControl: number;
   increment: number;
   fen: string;
+  difficulty?: string;
 }
 
 export default IBoard;

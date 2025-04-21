@@ -40,8 +40,8 @@ class ChessEngine {
     }
   };
 
-  getMoveObject = async (fen: string): Promise<{ move: string; fenAfterMove: string }> => {
-    const result = await execPromise(`${this.enginePath} bestmove fen "${fen}" time 0.5`);
+  getMoveObject = async (fen: string, difficulty: string): Promise<{ move: string; fenAfterMove: string }> => {
+    const result = await execPromise(`${this.enginePath} bestmove fen "${fen}" depth difficulty ${difficulty}`);
     const engineOutput: string[] = parseEngineOutput(result.stdout);
 
     logger.info(`Engine output: ${engineOutput}`);
