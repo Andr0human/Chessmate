@@ -12,7 +12,7 @@ import {
 import { DrawOfferModal, GameOverModal, PromotionModal } from "../modals";
 import { socket } from "../services";
 
-const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
+const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameType }) => {
   // State management
   const [game, setGame] = useState(new Chess());
   const [boardPosition, setBoardPosition] = useState(game.board());
@@ -817,15 +817,19 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true }) => {
           Flip Board
         </button>
 
-        <button
-          className={`px-4 py-2 bg-green-600 text-white rounded ${
-            isGameReady ? "hover:bg-green-700" : "opacity-50 cursor-not-allowed"
-          }`}
-          disabled={!isGameReady || gameOver}
-          onClick={handleOfferDraw}
-        >
-          Offer Draw
-        </button>
+        {gameType == "multiplayer" && (
+          <button
+            className={`px-4 py-2 bg-green-600 text-white rounded ${
+              isGameReady
+                ? "hover:bg-green-700"
+                : "opacity-50 cursor-not-allowed"
+            }`}
+            disabled={!isGameReady || gameOver}
+            onClick={handleOfferDraw}
+          >
+            Offer Draw
+          </button>
+        )}
 
         <button
           className={`px-4 py-2 bg-red-600 text-white rounded ${

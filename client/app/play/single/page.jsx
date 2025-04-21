@@ -94,6 +94,7 @@ export default function SinglePlayerPage() {
                 updateFen={updateFen}
                 isGameReady={true}
                 roomId={roomId}
+                gameType="singleplayer"
               />
             )}
           </div>
