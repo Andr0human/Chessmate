@@ -40,3 +40,32 @@ export const PIECE_SYMBOLS = {
 };
 
 export const CHESS_PIECES = ["♟", "♞", "♝", "♜", "♛", "♚"];
+
+export const DEFAULT_START_OPTIONS = {
+  board: {
+    side: SIDES.WHITE,
+    timeControl: 600,
+    increment: 0,
+    fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    difficulty: "medium",
+  },
+  connection: {
+    roomId: null,
+    mySocketId: null,
+    status: "", // waiting | playing | ended
+  },
+  players: [
+    {
+      id: null,
+      name: "Player 1",
+      side: SIDES.WHITE,
+      timeLeft: 600,
+    },
+    {
+      id: null,
+      name: "Player 2",
+      side: SIDES.BLACK,
+      timeLeft: 600,
+    },
+  ],
+};

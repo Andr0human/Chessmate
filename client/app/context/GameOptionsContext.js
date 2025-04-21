@@ -1,41 +1,19 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
-import { SIDES } from "../lib/constants";
+import { DEFAULT_START_OPTIONS } from "../lib/constants";
+import { inverseSide } from "../lib/helpers";
 
 const GameOptionsContext = createContext();
 
 export const GameOptionsProvider = ({ children }) => {
-  const [gameOptions, setGameOptions] = useState({
-    board: {
-      side: SIDES.WHITE,
-      timeControl: 600,
-      increment: 0,
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    },
-    connection: {
-      roomId: null,
-      mySocketId: null,
-      status: "", // waiting | playing | ended
-    },
-    players: [
-      {
-        id: null,
-        name: "Player 1",
-        side: SIDES.WHITE,
-        timeLeft: 600,
-      },
-      {
-        id: null,
-        name: "Player 2",
-        side: SIDES.BLACK,
-        timeLeft: 600,
-      },
-    ],
-  });
+  const [gameOptions, setGameOptions] = useState(DEFAULT_START_OPTIONS);
 
   const updateFen = (fen) => {
-    setGameOptions({ ...gameOptions, board: { ...gameOptions.board, fen } });
+    setGameOptions((prev) => ({
+      ...prev,
+      board: { ...prev.board, side: inverseSide(prev.board.side), fen },
+    }));
   };
 
   return (
