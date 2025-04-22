@@ -10,8 +10,6 @@ import { generateBoardOptions } from "../../lib/helpers";
 import { GameStatusModal } from "../../modals";
 import { apiInstance, socket } from "../../services";
 
-export const runtime = "edge";
-
 const ChessBoard = dynamic(() => import("../../components/ChessBoard"), {
   ssr: false,
 });
