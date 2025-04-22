@@ -3,6 +3,9 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { generateStars } from "./lib/helpers";
+
+export const runtime = "edge";
+
 // Dynamic import to avoid SSR issues
 const MainMenu = dynamic(() => import("./components/home/MainMenu"), {
   ssr: false,
