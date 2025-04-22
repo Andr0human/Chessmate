@@ -45,7 +45,12 @@ class Server {
 
   private configureMiddlewares(): void {
     this.app.use(express.json());
-    this.app.use(cors());
+    this.app.use(
+      cors({
+        origin: "*",
+        credentials: false,
+      })
+    );
     this.app.use(morgan("dev"));
   }
 
