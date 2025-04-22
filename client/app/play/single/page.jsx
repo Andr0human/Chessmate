@@ -9,6 +9,8 @@ import { DEFAULT_START_OPTIONS, SIDES } from "../../lib/constants";
 import { generateBoardOptions } from "../../lib/helpers";
 import { socket } from "../../services";
 
+export const runtime = "edge";
+
 const ChessBoard = dynamic(() => import("../../components/ChessBoard"), {
   ssr: false,
 });
