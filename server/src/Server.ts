@@ -29,8 +29,8 @@ class Server {
 
     this.io = new SocketIOServer(this.httpServer, {
       cors: {
-        origin: "*",
-        credentials: cors.credentials,
+        origin: JSON.parse(cors.origin),
+        credentials: false,
       },
     });
   }
@@ -45,12 +45,7 @@ class Server {
 
   private configureMiddlewares(): void {
     this.app.use(express.json());
-    this.app.use(
-      cors({
-        origin: "*",
-        credentials: false,
-      })
-    );
+    this.app.use(cors());
     this.app.use(morgan("dev"));
   }
 
