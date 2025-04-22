@@ -29,7 +29,7 @@ class Server {
 
     this.io = new SocketIOServer(this.httpServer, {
       cors: {
-        origin: JSON.parse(cors.origin),
+        origin: "*",
         credentials: cors.credentials,
       },
     });
