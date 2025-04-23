@@ -13,3 +13,7 @@ export const checkGameRoomExists = (roomId: string): boolean => {
 
   return room.players.some(({ id }) => !!id);
 };
+
+export const getAllGameRooms = (): IRoom[] => {
+  return Array.from(gameRooms.values());
+};

@@ -304,6 +304,12 @@ export default function registerGameSocketHandlers(socket: Socket) {
 
       if (player) {
         delete player?.id;
+
+        if (room.gameType === IGameType.SINGLEPLAYER) {
+          gameRooms.delete(roomId);
+          logger.info(`Room ${roomId} deleted!`);
+          continue;
+        }
       }
 
       if (room.players.every((player) => !player.id)) {

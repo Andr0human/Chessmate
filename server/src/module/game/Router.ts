@@ -22,6 +22,8 @@ class GameRouter {
       "/available/:roomId",
       GameController.checkRoomAvailability
     );
+
+    this.router.get("/all", GameController.getAll);
   }
 }
 
