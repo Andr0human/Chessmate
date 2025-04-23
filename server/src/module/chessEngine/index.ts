@@ -1,3 +1,4 @@
-import ChessEngine from "./engine";
+import ChessEngine from "./Engine";
+import chessEngineRouter from "./Router";
 
-export { ChessEngine };
+export { ChessEngine, chessEngineRouter };
