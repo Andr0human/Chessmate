@@ -40,12 +40,29 @@ class ChessEngine {
     }
   };
 
-  getMoveObject = async (fen: string, difficulty: string): Promise<{ move: string; fenAfterMove: string }> => {
-    const result = await execPromise(`${this.enginePath} bestmove fen "${fen}" depth difficulty ${difficulty}`);
+  getMoveObject = async (
+    fen: string,
+    difficulty: string
+  ): Promise<{ move: string; fenAfterMove: string }> => {
+    const result = await execPromise(
+      `${this.enginePath} bestmove fen "${fen}" depth difficulty ${difficulty}`
+    );
     const engineOutput: string[] = parseEngineOutput(result.stdout);
 
     logger.info(`Engine output: ${engineOutput}`);
     return { move: engineOutput[0], fenAfterMove: engineOutput[1] };
+  };
+
+  speedTest = async (): Promise<string[]> => {
+    try {
+      const result = await execPromise(`${this.enginePath} speed`);
+      const engineOutput: string[] = parseEngineOutput(result.stdout);
+
+      return engineOutput;
+    } catch (error) {
+      logger.error(`Error running speed test: ${error}`);
+      return [];
+    }
   };
 }
 
