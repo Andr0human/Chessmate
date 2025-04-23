@@ -38,7 +38,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
 
     gameRooms.set(roomId, {
       id: roomId,
-      status: IStatus.PLAYING,
+      status: IStatus.WAITING,
       players,
       board,
       lastTimeStamp: Date.now(),
