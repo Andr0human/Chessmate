@@ -23,6 +23,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
   const [boardFlipped, setBoardFlipped] = useState(false);
   const [squareSize, setSquareSize] = useState(100);
   const [playerSide, setPlayerSide] = useState(null);
+  const [lastMove, setLastMove] = useState(null);
 
   // Promotion modal state
   const [promotionMove, setPromotionMove] = useState(null);
@@ -64,6 +65,12 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         // If the move was successful, update the board position
         setBoardPosition(game.board());
         updateFen(board.fen);
+        
+        // Update last move for highlighting
+        setLastMove({
+          from: moveResult.from,
+          to: moveResult.to
+        });
 
         // Update player clocks with the latest time information from server
         if (players && board.timeControl > 0) {
@@ -156,6 +163,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       const newGame = new Chess(gameOptions.board.fen);
       setGame(newGame);
       setBoardPosition(newGame.board());
+      setLastMove(null);
 
       if (gameOptions.board?.timeControl > 0) {
         const sideLower = player.side;
@@ -314,6 +322,12 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       setSelectedSquare(null);
       setLegalMoves([]);
       setDraggingPiece(null);
+      
+      // Set the last move for highlighting
+      setLastMove({
+        from: move.from,
+        to: move.to
+      });
 
       console.log("#LOG move_sent", roomId, {
         move: move.san,
@@ -611,6 +625,10 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
 
       const isSelected = selectedSquare === algebraicSquare;
       const isLegalMove = legalMoves.includes(algebraicSquare);
+      
+      // Check if this square is part of the last move
+      const isLastMoveFrom = lastMove && lastMove.from === algebraicSquare;
+      const isLastMoveTo = lastMove && lastMove.to === algebraicSquare;
 
       return (
         <div
@@ -647,6 +665,16 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
                 ]
               }
             </div>
+          )}
+
+          {/* Highlight for last move - source square */}
+          {isLastMoveFrom && (
+            <div className="absolute inset-0 bg-amber-500 opacity-25 z-0 ring-2 ring-amber-500 ring-inset"></div>
+          )}
+
+          {/* Highlight for last move - destination square */}
+          {isLastMoveTo && (
+            <div className="absolute inset-0 bg-amber-500 opacity-25 z-0 ring-2 ring-amber-500 ring-inset"></div>
           )}
 
           {/* Highlight for selected piece */}
@@ -700,17 +728,18 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       );
     },
     [
-      boardFlipped,
-      boardPosition,
-      game,
-      handleDragOver,
-      handleDragStart,
-      handleDrop,
-      handlePieceSelect,
-      handleSquareClick,
-      legalMoves,
-      selectedSquare,
+      boardFlipped, 
+      boardPosition, 
+      game, 
+      handleDragOver, 
+      handleDragStart, 
+      handleDrop, 
+      handlePieceSelect, 
+      handleSquareClick, 
+      legalMoves, 
+      selectedSquare, 
       squareSize,
+      lastMove,
     ]
   );
 
