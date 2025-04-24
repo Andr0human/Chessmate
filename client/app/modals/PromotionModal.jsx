@@ -31,11 +31,11 @@ const PromotionModal = ({ isOpen, onClose, onSelectPiece, playerColor }) => {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
       onClick={handleOutsideClick}
     >
-      <div ref={modalRef} className={`${modalBg} p-4 rounded-lg shadow-lg`}>
-        <h2 className={`${textColor} text-xl font-bold mb-4 text-center`}>
+      <div ref={modalRef} className={`${modalBg} p-8 rounded-lg shadow-lg`}>
+        <h2 className={`${textColor} text-2xl font-bold mb-6 text-center`}>
           Promote Pawn
         </h2>
-        <div className="flex gap-4">
+        <div className="flex gap-6">
           {promotionPieces.map((pieceType) => {
             // Create piece object format that matches chess.js piece format
             const piece = {
@@ -46,21 +46,18 @@ const PromotionModal = ({ isOpen, onClose, onSelectPiece, playerColor }) => {
             return (
               <button
                 key={pieceType}
-                className={`w-16 h-16 flex items-center justify-center ${buttonBg} ${buttonHoverBg} rounded transition-colors cursor-pointer`}
+                className={`w-24 h-24 flex items-center justify-center ${buttonBg} ${buttonHoverBg} rounded-lg transition-colors cursor-pointer`}
                 onClick={() => onSelectPiece(pieceType)}
               >
-                <span
+                <img
+                  src={getPieceSymbol(piece)}
+                  alt={`${piece.color === 'w' ? 'White' : 'Black'} ${pieceType}`}
                   style={{
-                    fontSize: "48px",
-                    lineHeight: 1,
-                    color: playerColor,
-                    textShadow: isBlack
-                      ? "0 0 2px white, 0 0 1px white"
-                      : "0 0 1px black",
+                    width: "90%",
+                    height: "90%",
+                    objectFit: "contain"
                   }}
-                >
-                  {getPieceSymbol(piece)}
-                </span>
+                />
               </button>
             );
           })}
