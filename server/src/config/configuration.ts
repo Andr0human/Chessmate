@@ -11,6 +11,7 @@ const config: IServerConfig = {
     origin: process.env.CORS_ORIGIN || "*",
     credentials: process.env.CORS_CREDENTIALS === "true",
   },
+  adminPass: process.env.ADMIN_PASS || "admin",
 };
 
 export default config;

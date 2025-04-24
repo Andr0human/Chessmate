@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { AdminMiddleware } from "../../lib/middlewares";
 import ChessEngineController from "./Controller";
 
 class ChessEngineRouter {
@@ -18,7 +19,13 @@ class ChessEngineRouter {
   }
 
   private setupRoutes(): void {
+    // Apply admin password middleware to all engine routes
+    this.router.use(AdminMiddleware.checkPassword);
+
+    // Engine routes
     this.router.get("/speed", ChessEngineController.speedTest);
+
+    this.router.post("/go", ChessEngineController.go);
   }
 }
 
