@@ -6,6 +6,7 @@ interface IServerConfig {
     origin: string;
     credentials: boolean;
   };
+  adminPass: string;
 }
 
 export default IServerConfig;

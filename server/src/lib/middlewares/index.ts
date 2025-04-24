@@ -1,3 +1,4 @@
+import AdminMiddleware from "./AdminMiddleware";
 import ErrorHandlerMiddleware from "./ErrorHandlerMiddleware";
 
-export { ErrorHandlerMiddleware };
+export { AdminMiddleware, ErrorHandlerMiddleware };

@@ -32,6 +32,7 @@ npm install
 PORT=3001
 FRONTEND_URL=http://localhost:3000
 NODE_ENV=development
+ADMIN_PASS=your_secure_password
 ```
 
 ### Running the Server
@@ -68,6 +69,16 @@ The server will be running at http://localhost:8080
 - `gameEnded`: Notification that the game has ended
 - `opponentDisconnected`: Notification that the opponent disconnected
 - `error`: Error messages
+
+## Chess Engine API Security
+
+The Chess Engine API endpoints are protected by an admin password middleware. To access these endpoints, you must include the `adminPass` query parameter with your request:
+
+```
+GET /api/chess-engine/speed?adminPass=your_secure_password
+```
+
+Set the `ADMIN_PASS` environment variable to define your secure password. If this variable is not set, a default password is used (not recommended for production).
 
 ## License
 

@@ -2,7 +2,8 @@ import { exec } from "child_process";
 import path from "path";
 import { promisify } from "util";
 import logger from "../../lib/logger";
-import { parseEngineOutput } from "./helpers";
+import { IGoRequest } from "./entities";
+import { buildGoCommand, parseEngineOutput } from "./helpers";
 
 const execPromise = promisify(exec);
 
@@ -61,6 +62,20 @@ class ChessEngine {
       return engineOutput;
     } catch (error) {
       logger.error(`Error running speed test: ${error}`);
+      return [];
+    }
+  };
+
+  go = async (options: IGoRequest): Promise<string[]> => {
+    try {
+      const result = await execPromise(
+        buildGoCommand(this.enginePath, options)
+      );
+      const engineOutput: string[] = parseEngineOutput(result.stdout);
+
+      return engineOutput;
+    } catch (error) {
+      logger.error(`Error running go: ${error}`);
       return [];
     }
   };
