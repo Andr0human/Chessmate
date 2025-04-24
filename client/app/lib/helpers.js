@@ -1,4 +1,4 @@
-import { FILES, PIECE_SYMBOLS, RANKS, SIDES } from "./constants";
+import { FILES, PIECE_NAMES, RANKS, SIDES } from "./constants";
 
 export const formatTime = (timeMs) => {
   const totalSeconds = Math.floor(timeMs / 1000);
@@ -19,7 +19,10 @@ export const squareToAlgebraic = (row, col, boardFlipped) => {
 export const getPieceSymbol = (piece) => {
   if (!piece) return null;
 
-  return PIECE_SYMBOLS[piece.type] || "";
+  const color = piece.color === "w" ? "white" : "black";
+  const type = PIECE_NAMES[piece.type] || "";
+
+  return `/pieces/${color}/${type}.webp`;
 };
 
 // Generate a random 6-character roomId

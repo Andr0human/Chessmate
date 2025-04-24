@@ -713,15 +713,24 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
                 }
               }}
               style={{
-                fontSize: `${squareSize * 0.7}px`,
-                lineHeight: "1",
-                color: piece.color === "w" ? SIDES.WHITE : SIDES.BLACK,
-                textShadow:
-                  piece.color === "w" ? "0 0 1px black" : "0 0 1px white",
                 transition: "transform 0.15s ease-in-out",
+                width: `${squareSize * 0.8}px`,
+                height: `${squareSize * 0.8}px`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
               }}
             >
-              {getPieceSymbol(piece)}
+              <img 
+                src={getPieceSymbol(piece)}
+                alt={`${piece.color === 'w' ? 'White' : 'Black'} ${piece.type}`}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain"
+                }}
+                draggable="false"
+              />
             </div>
           )}
         </div>

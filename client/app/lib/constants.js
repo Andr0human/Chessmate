@@ -24,19 +24,13 @@ export const SIDES = {
   BLACK: "black",
 };
 
-export const PIECE_SYMBOLS = {
-  p: "♟",
-  n: "♞",
-  b: "♝",
-  r: "♜",
-  q: "♛",
-  k: "♚",
-  P: "♙",
-  N: "♘",
-  B: "♗",
-  R: "♖",
-  Q: "♕",
-  K: "♔",
+export const PIECE_NAMES = {
+  p: "pawn",
+  n: "knight",
+  b: "bishop",
+  r: "rook",
+  q: "queen",
+  k: "king",
 };
 
 export const CHESS_PIECES = ["♟", "♞", "♝", "♜", "♛", "♚"];
