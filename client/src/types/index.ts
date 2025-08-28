@@ -13,7 +13,6 @@ export type {
   File,
   Rank,
   Square,
-  Side,
   PieceType,
   PieceName,
   PieceSymbol,
@@ -22,7 +21,11 @@ export type {
   Move,
   FENString,
   ChessJsMove,
+  ChessJsPiece,
+  DraggingPiece,
 } from "./chess";
+
+export { Side } from "./chess";
 
 // Game Types
 export type {
@@ -32,6 +35,12 @@ export type {
   GameStatus,
   GameOptions,
   GameState,
+  GameResult,
+  GameWinner,
 } from "./game";
+
+export { DrawReason } from "./game";
+
+export type { MoveReceived } from "./socket";
 
 export type { Star } from "./star";

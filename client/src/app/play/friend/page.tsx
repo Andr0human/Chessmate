@@ -2,9 +2,8 @@
 
 import { GameStatusModal } from "@/components/modals";
 import { useGameOptions } from "@/context";
-import { SIDES } from "@/lib/constants";
 import { apiInstance, socket } from "@/services";
-import { GameOptions } from "@/types";
+import { BoardState, GameOptions, Side } from "@/types";
 import { MantineProvider } from "@mantine/core";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -57,7 +56,7 @@ const MultiplayerContent = () => {
       console.log("#LOG Player joined:", { myID: socket.id, startOptions });
 
       setStartPosition(
-        gameOptions.connection.roomId,
+        gameOptions.connection.roomId || "",
         socket.id || "",
         startOptions,
         true
@@ -94,7 +93,7 @@ const MultiplayerContent = () => {
     const createOrJoinRoom = (
       roomId: string,
       roomAvailable: boolean,
-      boardOptions: GameOptions
+      boardOptions: BoardState
     ) => {
       if (roomAvailable) {
         console.log("#LOG Attempting to join room:", roomId);
@@ -112,22 +111,16 @@ const MultiplayerContent = () => {
     checkRoomStatus().then((roomAvailable) => {
       console.log("#LOG Room status checked:", roomAvailable);
 
-      const { side, timeControl, increment, fen } = gameOptions?.board || {};
+      const { side } = gameOptions?.board || {};
 
       const startingSide =
         side === "random"
           ? Math.random() < 0.5
-            ? SIDES.white
-            : SIDES.black
+            ? Side.white
+            : Side.black
           : side;
 
       const newBoard = { ...gameOptions?.board, side: startingSide };
-      if (newBoard?.timeControl) {
-        newBoard.timeControl = parseInt(newBoard.timeControl);
-      }
-      if (newBoard?.increment) {
-        newBoard.increment = parseInt(newBoard.increment);
-      }
 
       setGameOptions((prev: GameOptions) => ({
         ...prev,

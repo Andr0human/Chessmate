@@ -1,11 +1,11 @@
 "use client";
 
-import { SIDES } from "@/lib/constants";
+import { GameResult, GameWinner, Side } from "@/types";
 
 interface GameOverModalProps {
   isOpen: boolean;
-  result: string;
-  winner: string;
+  result: GameResult;
+  winner: GameWinner | null;
   onMainMenu: () => void;
 }
 
@@ -21,7 +21,7 @@ const GameOverModal = ({
 
   const getResultMessage = () => {
     if (result === "checkmate") {
-      return `Checkmate! ${winner === SIDES.white ? "White" : "Black"} wins`;
+      return `Checkmate! ${winner === Side.white ? "White" : "Black"} wins`;
     } else if (result === "draw") {
       switch (winner) {
         case "stalemate":
@@ -38,10 +38,10 @@ const GameOverModal = ({
           return "Draw";
       }
     } else if (result === "timeout") {
-      return `Time's up! ${winner === SIDES.white ? "White" : "Black"} wins`;
+      return `Time's up! ${winner === Side.white ? "White" : "Black"} wins`;
     } else if (result === "resignation") {
-      return `${winner === SIDES.white ? "Black" : "White"} resigned. ${
-        winner === SIDES.white ? "White" : "Black"
+      return `${winner === Side.white ? "Black" : "White"} resigned. ${
+        winner === Side.white ? "White" : "Black"
       } wins!`;
     }
     return "Game Over";

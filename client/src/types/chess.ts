@@ -4,7 +4,10 @@ export type Rank = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
 
 export type Square = `${File}${Rank}`;
 
-export type Side = "white" | "black";
+export enum Side {
+  white = "white",
+  black = "black",
+}
 
 export type PieceType = "p" | "n" | "b" | "r" | "q" | "k";
 
@@ -56,5 +59,16 @@ export interface ChessJsMove {
   lan: string;
   san: string;
 }
+
+export type ChessJsPiece = {
+  color: "w" | "b";
+  square?: Square;
+  type: PieceType;
+} | null;
+
+export type DraggingPiece = {
+  piece: ChessJsPiece;
+  square: Square;
+};
 
 export type FENString = string;

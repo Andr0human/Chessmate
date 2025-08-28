@@ -9,8 +9,7 @@ import {
 } from "react";
 
 import { DEFAULT_START_OPTIONS } from "../lib/constants";
-import { inverseSide } from "../lib/helpers";
-import { GameOptions } from "@/types";
+import { GameOptions, Side } from "@/types";
 
 interface GameOptionsContextType {
   gameOptions: GameOptions;
@@ -34,7 +33,11 @@ export const GameOptionsProvider = ({
   const updateFen = (fen: string) => {
     setGameOptions((prev) => ({
       ...prev,
-      board: { ...prev.board, side: inverseSide(prev.board.side), fen },
+      board: {
+        ...prev.board,
+        side: prev.board.side === Side.white ? Side.black : Side.white,
+        fen,
+      },
     }));
   };
 

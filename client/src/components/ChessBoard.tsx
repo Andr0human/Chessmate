@@ -1,19 +1,33 @@
-'use client';
+"use client";
 
-import { DrawOfferModal, GameOverModal, PromotionModal } from '@/components/modals';
-import { SIDES } from '@/lib/constants';
+import {
+  DrawOfferModal,
+  GameOverModal,
+  PromotionModal,
+} from "@/components/modals";
 import {
   formatTime,
   getPieceSymbol,
   inverseSide,
   squareToAlgebraic,
-} from '@/lib/helpers';
-import { socket } from '@/services';
-import type { ChessJsMove, GameOptions, Move, PieceType, Side, Square } from '@/types';
-import { GameResult } from '@/types/game';
-import { MoveReceived } from '@/types/socket';
-import { Chess } from 'chess.js';
-import { useCallback, useEffect, useRef, useState } from 'react';
+} from "@/lib/helpers";
+import { socket } from "@/services";
+import {
+  ChessJsMove,
+  ChessJsPiece,
+  DraggingPiece,
+  GameOptions,
+  Move,
+  PieceType,
+  Square,
+  GameResult,
+  MoveReceived,
+  GameWinner,
+  DrawReason,
+  Side,
+} from "@/types";
+import { Chess } from "chess.js";
+import { DragEvent, useCallback, useEffect, useRef, useState } from "react";
 
 interface ChessBoardProps {
   gameOptions: GameOptions;
@@ -23,11 +37,21 @@ interface ChessBoardProps {
   gameType: string;
 }
 
-const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameType }: ChessBoardProps) => {
+const ChessBoard = ({
+  gameOptions,
+  updateFen,
+  roomId,
+  isGameReady = true,
+  gameType,
+}: ChessBoardProps) => {
   // State management
   const [game, setGame] = useState(new Chess());
-  const [boardPosition, setBoardPosition] = useState(game.board());
-  const [draggingPiece, setDraggingPiece] = useState<any | null>(null);
+  const [boardPosition, setBoardPosition] = useState<ChessJsPiece[][]>(
+    game.board()
+  );
+  const [draggingPiece, setDraggingPiece] = useState<DraggingPiece | null>(
+    null
+  );
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalMoves, setLegalMoves] = useState<Square[]>([]);
   const [processingMove, setProcessingMove] = useState(false);
@@ -47,7 +71,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
   // Game over state
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
-  const [gameWinner, setGameWinner] = useState<any>(null);
+  const [gameWinner, setGameWinner] = useState<GameWinner | null>(null);
 
   // Refs
   const boardRef = useRef(null);
@@ -57,14 +81,14 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
   const [clock, setClock] = useState({
     white: 60,
     black: 60,
-    active: SIDES.white,
-    upper: { side: SIDES.black, name: '' },
-    lower: { side: SIDES.white, name: '' },
+    active: Side.white,
+    upper: { side: Side.black, name: "" },
+    lower: { side: Side.white, name: "" },
   });
 
   // Socket connection and move handling
   useEffect(() => {
-    socket.on('move_received', (moveData: MoveReceived) => {
+    socket.on("move_received", (moveData: MoveReceived) => {
       const { move, board, players } = moveData;
 
       // Attempt to make the move on the game state
@@ -84,10 +108,10 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         // Update player clocks with the latest time information from server
         if (players && board.timeControl > 0) {
           const whitePlayer = players.find(
-            (player) => player.side === SIDES.white,
+            (player) => player.side === Side.white
           );
           const blackPlayer = players.find(
-            (player) => player.side === SIDES.black,
+            (player) => player.side === Side.black
           );
 
           if (whitePlayer && blackPlayer) {
@@ -95,51 +119,51 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
               ...prev,
               white: whitePlayer.timeLeft * 1000,
               black: blackPlayer.timeLeft * 1000,
-              active: board.side,
+              active: board.side as Side,
             }));
           }
         }
       } else {
-        console.error('Invalid move received:', move);
+        console.error("Invalid move received:", move);
       }
     });
 
     // Handle draw offer
-    socket.on('draw_offered', (offeredBySocketId: string) => {
+    socket.on("draw_offered", (offeredBySocketId: string) => {
       // Find player who offered the draw
       const offeringPlayer = gameOptions.players.find(
-        (player) => player.id === offeredBySocketId,
+        (player) => player.id === offeredBySocketId
       );
 
-      setDrawOfferedBy(offeringPlayer?.name || 'Opponent');
+      setDrawOfferedBy(offeringPlayer?.name || "Opponent");
       setShowDrawOfferModal(true);
     });
 
     // Handle draw accepted
-    socket.on('draw_accepted', () => {
-      setGameResult('draw');
-      setGameWinner('agreement');
+    socket.on("draw_accepted", () => {
+      setGameResult("draw");
+      setGameWinner(DrawReason.AGREEMENT as GameWinner);
       setGameOver(true);
       setShowDrawOfferModal(false);
     });
 
     // Handle draw rejected
-    socket.on('draw_rejected', () => {
+    socket.on("draw_rejected", () => {
       // Just hide the modal for the player who offered the draw
       setShowDrawOfferModal(false);
     });
 
     // Handle resignation
-    socket.on('game_resigned', (resignedSocketId: string) => {
+    socket.on("game_resigned", (resignedSocketId: string) => {
       const resigningPlayer = gameOptions.players.find(
-        (player) => player.id === resignedSocketId,
+        (player) => player.id === resignedSocketId
       );
 
       if (resigningPlayer) {
         const resigningSide = resigningPlayer.side;
         const winningSide = inverseSide(resigningSide);
 
-        setGameResult('resignation');
+        setGameResult("resignation");
         setGameWinner(winningSide);
         setGameOver(true);
       }
@@ -147,27 +171,27 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
 
     // Clean up the socket listeners on component unmount
     return () => {
-      socket.off('move_received');
-      socket.off('draw_offered');
-      socket.off('draw_accepted');
-      socket.off('draw_rejected');
-      socket.off('game_resigned');
+      socket.off("move_received");
+      socket.off("draw_offered");
+      socket.off("draw_accepted");
+      socket.off("draw_rejected");
+      socket.off("game_resigned");
     };
   }, [game, gameOptions.players]);
 
   useEffect(() => {
-    if (gameOptions?.connection?.status === 'playing') {
+    if (gameOptions?.connection?.status === "playing") {
       const player = gameOptions.players.find(
-        (player) => player.id === gameOptions.connection.mySocketId,
+        (player) => player.id === gameOptions.connection.mySocketId
       );
 
       if (!player) {
-        console.error('Could not find player data for this connection');
+        console.error("Could not find player data for this connection");
         return;
       }
 
       setPlayerSide(player.side);
-      setBoardFlipped(player.side === SIDES.black);
+      setBoardFlipped(player.side === Side.black);
 
       const newGame = new Chess(gameOptions.board.fen);
       setGame(newGame);
@@ -179,26 +203,26 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         const sideUpper = inverseSide(player.side);
 
         const playerLower = gameOptions.players.find(
-          (player) => player.side === sideLower,
+          (player) => player.side === sideLower
         );
         const playerUpper = gameOptions.players.find(
-          (player) => player.side === sideUpper,
+          (player) => player.side === sideUpper
         );
 
         const whitePlayer = gameOptions.players.find(
-          (player) => player.side === SIDES.white,
+          (player) => player.side === Side.white
         );
         const blackPlayer = gameOptions.players.find(
-          (player) => player.side === SIDES.black,
+          (player) => player.side === Side.black
         );
 
         const whiteTimeMs =
-          whitePlayer && typeof whitePlayer.timeLeft === 'number'
+          whitePlayer && typeof whitePlayer.timeLeft === "number"
             ? Math.max(0, whitePlayer.timeLeft * 1000)
             : gameOptions.board.timeControl * 1000;
 
         const blackTimeMs =
-          blackPlayer && typeof blackPlayer.timeLeft === 'number'
+          blackPlayer && typeof blackPlayer.timeLeft === "number"
             ? Math.max(0, blackPlayer.timeLeft * 1000)
             : gameOptions.board.timeControl * 1000;
 
@@ -206,14 +230,14 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
           ...prev,
           white: whiteTimeMs,
           black: blackTimeMs,
-          active: gameOptions.board.side,
+          active: gameOptions.board.side as Side,
           upper: {
             side: sideUpper,
-            name: playerUpper?.name || 'Player 2',
+            name: playerUpper?.name || "Player 2",
           },
           lower: {
             side: sideLower,
-            name: playerLower?.name || 'Player 1',
+            name: playerLower?.name || "Player 1",
           },
         }));
       }
@@ -222,7 +246,9 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
 
   // Handle timer
   useEffect(() => {
-    if (!gameOptions.board?.timeControl || !isGameReady) {return;}
+    if (!gameOptions.board?.timeControl || !isGameReady) {
+      return;
+    }
 
     // Clear any existing timer
     if (timerInterval.current) {
@@ -230,7 +256,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
     }
 
     // Start a new timer based on whose turn it is
-    const activeColor = game.turn() === 'w' ? SIDES.white : SIDES.black;
+    const activeColor = game.turn() === "w" ? Side.white : Side.black;
     setClock((prev) => ({
       ...prev,
       active: activeColor,
@@ -253,23 +279,25 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
   useEffect(() => {
     const player = gameOptions.players.find(
       (player) =>
-        player.id === 'computer' && player.side === gameOptions.board.side,
+        player.id === "computer" && player.side === gameOptions.board.side
     );
 
     if (player) {
-      socket.emit('request_engine_move', roomId);
+      socket.emit("request_engine_move", roomId);
     }
   }, [gameOptions?.board?.side]);
 
   // Check for game over conditions
   const checkGameOver = useCallback(() => {
     // Already in a game over state
-    if (gameOver) {return;}
+    if (gameOver) {
+      return;
+    }
 
     // Check for checkmate
     if (game.isCheckmate()) {
-      const winner = game.turn() === 'w' ? SIDES.black : SIDES.white;
-      setGameResult('checkmate');
+      const winner = game.turn() === "w" ? Side.black : Side.white;
+      setGameResult("checkmate");
       setGameWinner(winner);
       setGameOver(true);
       return;
@@ -277,21 +305,19 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
 
     // Check for draw scenarios
     if (game.isDraw()) {
-      let drawReason = 'unknown';
-
       if (game.isStalemate()) {
-        drawReason = 'stalemate';
+        setGameWinner(DrawReason.STALEMATE);
       } else if (game.isInsufficientMaterial()) {
-        drawReason = 'insufficient';
+        setGameWinner(DrawReason.INSUFFICIENT_MATERIAL);
       } else if (game.isThreefoldRepetition()) {
-        drawReason = 'threefold';
+        setGameWinner(DrawReason.THREEFOLD_REPETITION);
       } else if (game.isDraw()) {
-        // Check for fifty-move rule
-        drawReason = 'fifty';
+        setGameWinner(DrawReason.FIFTY_MOVE_RULE);
+      } else {
+        setGameWinner(DrawReason.UNKNOWN);
       }
 
-      setGameResult('draw');
-      setGameWinner(drawReason);
+      setGameResult("draw");
       setGameOver(true);
       return;
     }
@@ -302,15 +328,15 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       const blackTime = clock.black;
 
       if (whiteTime <= 0) {
-        setGameResult('timeout');
-        setGameWinner(SIDES.black);
+        setGameResult("timeout");
+        setGameWinner(Side.black);
         setGameOver(true);
         return;
       }
 
       if (blackTime <= 0) {
-        setGameResult('timeout');
-        setGameWinner(SIDES.white);
+        setGameResult("timeout");
+        setGameWinner(Side.white);
         setGameOver(true);
         return;
       }
@@ -338,13 +364,13 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         to: move.to as Square,
       });
 
-      console.log('#LOG move_sent', roomId, {
+      console.log("#LOG move_sent", roomId, {
         move: move.san,
         socketId: socket.id,
         fenAfterMove: game.fen(),
       });
 
-      socket.emit('move_sent', roomId, {
+      socket.emit("move_sent", roomId, {
         move: move.san,
         socketId: socket.id,
         fenAfterMove: game.fen(),
@@ -353,7 +379,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       // Add increment to player's time if provided
       if (gameOptions.board?.increment > 0) {
         const incrementMs = gameOptions.board.increment * 1000;
-        const playerColor = move.color === 'w' ? SIDES.white : SIDES.black;
+        const playerColor = move.color === "w" ? Side.white : Side.black;
 
         setClock((prev) => ({
           ...prev,
@@ -366,13 +392,13 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       // Check for game over conditions
       checkGameOver();
     },
-    [game, gameOptions.board?.increment, checkGameOver],
+    [game, gameOptions.board?.increment, checkGameOver]
   );
 
   // Handle main menu
   const handleMainMenu = () => {
     // Navigate to main menu
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   // Handle responsive sizing
@@ -381,17 +407,27 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       const width = window.innerWidth;
 
       // Set square size based on screen width
-      if (width < 400) {setSquareSize(48);} else if (width < 640) {setSquareSize(60);} else if (width < 768) {setSquareSize(70);} else if (width < 1024) {setSquareSize(80);} else {setSquareSize(100);}
+      if (width < 400) {
+        setSquareSize(48);
+      } else if (width < 640) {
+        setSquareSize(60);
+      } else if (width < 768) {
+        setSquareSize(70);
+      } else if (width < 1024) {
+        setSquareSize(80);
+      } else {
+        setSquareSize(100);
+      }
     };
 
     // Set initial dimensions
     updateDimensions();
 
     // Add event listener for window resize
-    window.addEventListener('resize', updateDimensions);
+    window.addEventListener("resize", updateDimensions);
 
     // Clean up event listener
-    return () => window.removeEventListener('resize', updateDimensions);
+    return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
   // Flip the board
@@ -411,14 +447,16 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       const moves = game.moves({ square, verbose: true });
       return moves.map((move) => move.to);
     },
-    [game],
+    [game]
   );
 
   // Handle piece click or touch
   const handlePieceSelect = useCallback(
-    (piece: any, square: Square) => {
-      const turn = game.turn() === 'w' ? SIDES.white : SIDES.black;
-      if (!isGameReady || turn !== playerSide) {return;}
+    (piece: ChessJsPiece, square: Square) => {
+      const turn = game.turn() === "w" ? Side.white : Side.black;
+      if (!isGameReady || turn !== playerSide) {
+        return;
+      }
 
       // If the same piece is clicked again, deselect it
       if (selectedSquare === square) {
@@ -429,18 +467,22 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
 
       // Only select pieces that belong to the current player
       const currentTurn = game.turn();
-      if (piece.color !== currentTurn) {return;}
+      if (piece?.color !== currentTurn) {
+        return;
+      }
 
       setSelectedSquare(square);
       setLegalMoves(getLegalMovesForSquare(square));
     },
-    [game, getLegalMovesForSquare, selectedSquare, isGameReady],
+    [game, getLegalMovesForSquare, selectedSquare, isGameReady]
   );
 
   // Handle promotion piece selection
   const handlePromotionSelect = useCallback(
     (pieceType: PieceType) => {
-      if (!promotionMove) {return;}
+      if (!promotionMove) {
+        return;
+      }
 
       const { from, to } = promotionMove;
       try {
@@ -451,16 +493,18 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
           promotion: pieceType,
         });
 
-        if (move) {playMove(move);}
+        if (move) {
+          playMove(move);
+        }
       } catch (error) {
-        console.error('Invalid promotion move:', error);
+        console.error("Invalid promotion move:", error);
       } finally {
         setShowPromotionModal(false);
         setPromotionMove(null);
         setProcessingMove(false);
       }
     },
-    [game, playMove, promotionMove],
+    [game, playMove, promotionMove]
   );
 
   // Handle closing the promotion modal without making a move
@@ -476,11 +520,15 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
   // Handle square click to move selected piece
   const handleSquareClick = useCallback(
     (targetSquare: Square) => {
-      const turn = game.turn() === 'w' ? SIDES.white : SIDES.black;
-      if (!isGameReady || turn !== playerSide) {return;}
+      const turn = game.turn() === "w" ? Side.white : Side.black;
+      if (!isGameReady || turn !== playerSide) {
+        return;
+      }
 
       // Prevent duplicate move processing
-      if (processingMove) {return;}
+      if (processingMove) {
+        return;
+      }
 
       if (selectedSquare && legalMoves.includes(targetSquare)) {
         setProcessingMove(true);
@@ -490,9 +538,9 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
           const piece = game.get(sourceSquare);
           const isPromotion =
             piece &&
-            piece.type === 'p' &&
-            ((piece.color === 'w' && targetSquare[1] === '8') ||
-              (piece.color === 'b' && targetSquare[1] === '1'));
+            piece.type === "p" &&
+            ((piece.color === "w" && targetSquare[1] === "8") ||
+              (piece.color === "b" && targetSquare[1] === "1"));
 
           if (isPromotion) {
             // Store the move details and show the promotion modal
@@ -507,9 +555,11 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
             to: targetSquare,
           });
 
-          if (move) {playMove(move);}
+          if (move) {
+            playMove(move);
+          }
         } catch (error) {
-          console.error('Invalid move:', error);
+          console.error("Invalid move:", error);
         } finally {
           // Only reset processing if not showing the promotion modal
           if (!showPromotionModal) {
@@ -528,36 +578,44 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       selectedSquare,
       isGameReady,
       showPromotionModal,
-    ],
+    ]
   );
 
   // Handle piece dragging start
   const handleDragStart = useCallback(
-    (e: any, piece: any, square: Square) => {
-      const turn = game.turn() === 'w' ? SIDES.white : SIDES.black;
-      if (!isGameReady || turn !== playerSide) {return;}
+    (e: DragEvent<HTMLDivElement>, piece: ChessJsPiece, square: Square) => {
+      const turn = game.turn() === "w" ? Side.white : Side.black;
+      if (!isGameReady || turn !== playerSide) {
+        return;
+      }
 
       const currentTurn = game.turn();
       // Only allow dragging pieces of the current player's color
-      if (piece.color !== currentTurn) {return;}
+      if (piece?.color !== currentTurn) {
+        return;
+      }
 
       setDraggingPiece({ piece, square });
       setSelectedSquare(square);
       setLegalMoves(getLegalMovesForSquare(square));
-      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.effectAllowed = "move";
     },
-    [game, getLegalMovesForSquare, isGameReady],
+    [game, getLegalMovesForSquare, isGameReady]
   );
 
   // Handle dropping a piece
   const handleDrop = useCallback(
-    (e: any, targetSquare: Square) => {
+    (e: DragEvent<HTMLDivElement>, targetSquare: Square) => {
       e.preventDefault();
 
       // Don't allow moves if game is not ready
-      if (!isGameReady) {return;}
+      if (!isGameReady) {
+        return;
+      }
 
-      if (!draggingPiece || processingMove) {return;}
+      if (!draggingPiece || processingMove) {
+        return;
+      }
 
       setProcessingMove(true);
       const { square: sourceSquare } = draggingPiece;
@@ -567,9 +625,9 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         const piece = game.get(sourceSquare);
         const isPromotion =
           piece &&
-          piece.type === 'p' &&
-          ((piece.color === 'w' && targetSquare[1] === '8') ||
-            (piece.color === 'b' && targetSquare[1] === '1'));
+          piece.type === "p" &&
+          ((piece.color === "w" && targetSquare[1] === "8") ||
+            (piece.color === "b" && targetSquare[1] === "1"));
 
         if (isPromotion) {
           // Store the move details and show the promotion modal
@@ -582,12 +640,14 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         const move = game.move({
           from: sourceSquare,
           to: targetSquare,
-          promotion: 'q', // Fallback, shouldn't be used due to check above
+          promotion: "q", // Fallback, shouldn't be used due to check above
         });
 
-        if (move) {playMove(move);}
+        if (move) {
+          playMove(move);
+        }
       } catch (error) {
-        console.error('Invalid move:', error);
+        console.error("Invalid move:", error);
       } finally {
         // Only reset processing if not showing the promotion modal
         if (!showPromotionModal) {
@@ -604,11 +664,11 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       processingMove,
       isGameReady,
       showPromotionModal,
-    ],
+    ]
   );
 
   // Allow dropping
-  const handleDragOver = useCallback((e: any) => {
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   }, []);
 
@@ -626,7 +686,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       const isBlack = (row + col) % 2 === 1;
 
       // Get the piece from the internal board representation
-      const piece = boardPosition[boardRow][boardCol];
+      const piece: ChessJsPiece = boardPosition[boardRow][boardCol];
 
       const isSelected = selectedSquare === algebraicSquare;
       const isLegalMove = legalMoves.includes(algebraicSquare);
@@ -639,7 +699,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         <div
           key={`${row}-${col}`}
           className={`flex items-center justify-center relative ${
-            isBlack ? 'bg-[#B58863]' : 'bg-[#F0D9B5]'
+            isBlack ? "bg-[#B58863]" : "bg-[#F0D9B5]"
           }`}
           style={{
             width: `${squareSize}px`,
@@ -665,7 +725,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
           {row === 7 && (
             <div className="absolute bottom-0 right-0 text-xs p-0.5 opacity-60">
               {
-                ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][
+                ["a", "b", "c", "d", "e", "f", "g", "h"][
                   boardFlipped ? 7 - col : col
                 ]
               }
@@ -703,7 +763,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
           {piece && (
             <div
               className={`chess-piece cursor-grab z-20 ${
-                isSelected ? 'scale-110' : ''
+                isSelected ? "scale-110" : ""
               }`}
               draggable="true"
               onDragStart={(e) => handleDragStart(e, piece, algebraicSquare)}
@@ -718,21 +778,21 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
                 }
               }}
               style={{
-                transition: 'transform 0.15s ease-in-out',
+                transition: "transform 0.15s ease-in-out",
                 width: `${squareSize * 0.8}px`,
                 height: `${squareSize * 0.8}px`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <img
-                src={getPieceSymbol(piece as any)}
-                alt={`${piece.color === 'w' ? 'White' : 'Black'} ${piece.type}`}
+                src={getPieceSymbol(piece)}
+                alt={`${piece.color === "w" ? "White" : "Black"} ${piece.type}`}
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
                 }}
                 draggable="false"
               />
@@ -754,7 +814,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       selectedSquare,
       squareSize,
       lastMove,
-    ],
+    ]
   );
 
   // Render the entire board
@@ -769,7 +829,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
       squares.push(
         <div key={row} className="flex">
           {rowSquares}
-        </div>,
+        </div>
       );
     }
 
@@ -778,8 +838,8 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
 
   // Render player info with timer
   const renderPlayerInfo = useCallback(
-    (position: 'upper' | 'lower') => {
-      const isUpper = position === 'upper';
+    (position: "upper" | "lower") => {
+      const isUpper = position === "upper";
       const playerInfo = isUpper ? clock.upper : clock.lower;
 
       return (
@@ -791,8 +851,8 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
             <div
               className={`timer text-3xl font-mono font-bold rounded py-1 px-4 ${
                 clock.active === playerInfo.side && isGameReady
-                  ? 'bg-black bg-opacity-70 text-white animate-pulse'
-                  : 'bg-black bg-opacity-50 text-white'
+                  ? "bg-black bg-opacity-70 text-white animate-pulse"
+                  : "bg-black bg-opacity-50 text-white"
               }`}
             >
               {formatTime(clock[playerInfo.side])}
@@ -801,44 +861,44 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         </div>
       );
     },
-    [clock, gameOptions.board?.timeControl, isGameReady],
+    [clock, gameOptions.board?.timeControl, isGameReady]
   );
 
   // Handle draw offer acceptance
   const handleAcceptDraw = useCallback(() => {
-    socket.emit('accept_draw', roomId);
+    socket.emit("accept_draw", roomId);
     setShowDrawOfferModal(false);
-    setGameResult('draw');
-    setGameWinner('agreement');
+    setGameResult("draw");
+    setGameWinner(DrawReason.AGREEMENT);
     setGameOver(true);
   }, [roomId]);
 
   // Handle draw offer rejection
   const handleRejectDraw = useCallback(() => {
-    socket.emit('reject_draw', roomId);
+    socket.emit("reject_draw", roomId);
     setShowDrawOfferModal(false);
   }, [roomId]);
 
   // Handle offering a draw
   const handleOfferDraw = useCallback(() => {
-    socket.emit('offer_draw', roomId);
+    socket.emit("offer_draw", roomId);
   }, [roomId]);
 
   // Handle resignation
   const handleResign = useCallback(() => {
     const resigningSide = playerSide;
     const winningSide = inverseSide(resigningSide as Side);
-    setGameResult('resignation');
+    setGameResult("resignation");
     setGameWinner(winningSide);
     setGameOver(true);
-    socket.emit('resign_game', roomId);
+    socket.emit("resign_game", roomId);
   }, [playerSide, roomId]);
 
   return (
     <div className="flex flex-col xl:flex-row gap-6">
       <div className="chess-game-container">
         {/* Black player timer and name */}
-        {renderPlayerInfo('upper')}
+        {renderPlayerInfo("upper")}
 
         {/* ChessBoard */}
         <div
@@ -849,7 +909,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         </div>
 
         {/* White player timer and name */}
-        {renderPlayerInfo('lower')}
+        {renderPlayerInfo("lower")}
       </div>
 
       <div className="game-controls flex flex-row xl:flex-col gap-4 justify-center mt-4 xl:mt-0">
@@ -860,12 +920,12 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
           Flip Board
         </button>
 
-        {gameType == 'multiplayer' && (
+        {gameType == "multiplayer" && (
           <button
             className={`px-4 py-2 bg-green-600 text-white rounded ${
               isGameReady
-                ? 'hover:bg-green-700'
-                : 'opacity-50 cursor-not-allowed'
+                ? "hover:bg-green-700"
+                : "opacity-50 cursor-not-allowed"
             }`}
             disabled={!isGameReady || gameOver}
             onClick={handleOfferDraw}
@@ -876,7 +936,7 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
 
         <button
           className={`px-4 py-2 bg-red-600 text-white rounded ${
-            isGameReady ? 'hover:bg-red-700' : 'opacity-50 cursor-not-allowed'
+            isGameReady ? "hover:bg-red-700" : "opacity-50 cursor-not-allowed"
           }`}
           disabled={!isGameReady || gameOver}
           onClick={handleResign}
@@ -887,17 +947,17 @@ const ChessBoard = ({ gameOptions, updateFen, roomId, isGameReady = true, gameTy
         <div className="mt-0 xl:mt-4 hidden xl:block">
           <h3 className="font-bold mb-2 text-white">Game Info</h3>
           <div className="text-sm text-gray-300">
-            <p>Time Control: {gameOptions.board?.timeControl || 'No'} min</p>
+            <p>Time Control: {gameOptions.board?.timeControl || "No"} min</p>
             {gameOptions.board?.increment > 0 && (
               <p>Increment: {gameOptions.board.increment} sec</p>
             )}
             <p>
-              Game Status:{' '}
+              Game Status:{" "}
               {gameOver
-                ? 'Game Over'
+                ? "Game Over"
                 : isGameReady
-                  ? 'In Progress'
-                  : 'Waiting for opponent'}
+                ? "In Progress"
+                : "Waiting for opponent"}
             </p>
           </div>
         </div>

@@ -1,5 +1,5 @@
 export interface TimeControlOption {
-  value: string;
+  value: number;
   label: string;
 }
 

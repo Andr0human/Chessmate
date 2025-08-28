@@ -7,6 +7,7 @@ import { useGameOptions } from "@/context/GameOptionsContext";
 import { DIFFICULTY_LEVELS, TIME_CONTROLS } from "@/lib/constants";
 import { generateRoomId } from "@/lib/helpers";
 import "@/styles/StartOptionModal.css";
+import { DifficultyLevel, Side } from "@/types";
 
 interface StartOptionModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ const StartOptionModal = ({
         ...gameOptions,
         connection: {
           roomId: newRoomId,
+          mySocketId: null,
           status: "waiting",
         },
       });
@@ -129,7 +131,10 @@ const StartOptionModal = ({
                     onClick={() =>
                       setGameOptions({
                         ...gameOptions,
-                        board: { ...gameOptions.board, side },
+                        board: {
+                          ...gameOptions.board,
+                          side: side as Side | "random",
+                        },
                       })
                     }
                   >
@@ -144,15 +149,15 @@ const StartOptionModal = ({
               <select
                 className="select-field"
                 value={gameOptions.board.timeControl}
-                onChange={(e) =>
+                onChange={(e) => {
                   setGameOptions({
                     ...gameOptions,
                     board: {
                       ...gameOptions.board,
-                      timeControl: e.target.value,
+                      timeControl: parseInt(e.target.value),
                     },
-                  })
-                }
+                  });
+                }}
               >
                 {TIME_CONTROLS.map((control) => (
                   <option key={control.value} value={control.value}>
@@ -195,7 +200,7 @@ const StartOptionModal = ({
                       ...gameOptions,
                       board: {
                         ...gameOptions.board,
-                        difficulty: e.target.value,
+                        difficulty: e.target.value as DifficultyLevel,
                       },
                     })
                   }

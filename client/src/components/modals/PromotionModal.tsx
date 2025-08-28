@@ -3,9 +3,8 @@
 import { useRef, MouseEvent } from "react";
 import Image from "next/image";
 
-import { SIDES } from "@/lib/constants";
 import { getPieceSymbol } from "@/lib/helpers";
-import { Piece, PieceType, Side } from "@/types";
+import { ChessJsPiece, PieceType, Side } from "@/types";
 
 interface PromotionModalProps {
   isOpen: boolean;
@@ -30,7 +29,7 @@ const PromotionModal = ({
   const promotionPieces = ["q", "r", "b", "n"];
 
   // Use different background colors based on player color
-  const isBlack = playerColor === SIDES.black;
+  const isBlack = playerColor === Side.black;
   const modalBg = isBlack ? "bg-gray-200" : "bg-gray-800";
   const buttonBg = isBlack ? "bg-gray-300" : "bg-gray-700";
   const buttonHoverBg = isBlack ? "hover:bg-gray-400" : "hover:bg-gray-600";
@@ -55,9 +54,9 @@ const PromotionModal = ({
         <div className="flex gap-6">
           {promotionPieces.map((pieceType) => {
             // Create piece object format that matches chess.js piece format
-            const piece: Piece = {
+            const piece: ChessJsPiece = {
               type: pieceType as PieceType,
-              color: playerColor === SIDES.white ? "white" : "black",
+              color: playerColor === Side.white ? "w" : "b",
             };
 
             return (
@@ -68,7 +67,9 @@ const PromotionModal = ({
               >
                 <Image
                   src={getPieceSymbol(piece)}
-                  alt={`${piece.color === "white" ? "White" : "Black"} ${pieceType}`}
+                  alt={`${
+                    piece.color === "w" ? "White" : "Black"
+                  } ${pieceType}`}
                   width={96}
                   height={96}
                   style={{
