@@ -9,7 +9,7 @@ export interface Player {
 }
 
 export interface BoardState {
-  side: Side;
+  side: Side | "random";
   timeControl: number;
   increment: number;
   fen: FENString;
@@ -36,5 +36,16 @@ export interface GameState extends GameOptions {
   isGameOver?: boolean;
   winner?: Side | "draw";
 }
+
+export enum DrawReason {
+  AGREEMENT = "agreement",
+  STALEMATE = "stalemate",
+  INSUFFICIENT_MATERIAL = "insufficient",
+  THREEFOLD_REPETITION = "threefold",
+  FIFTY_MOVE_RULE = "fifty",
+  UNKNOWN = "unknown",
+}
+
+export type GameWinner = "white" | "black" | DrawReason;
 
 export type GameResult = "checkmate" | "timeout" | "draw" | "resignation";

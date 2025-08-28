@@ -1,9 +1,9 @@
 "use client";
 
 import { useGameOptions } from "@/context";
-import { DEFAULT_START_OPTIONS, SIDES } from "@/lib/constants";
+import { DEFAULT_START_OPTIONS } from "@/lib/constants";
 import { socket } from "@/services";
-import { GameOptions } from "@/types";
+import { GameOptions, Side } from "@/types";
 import { MantineProvider } from "@mantine/core";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -31,7 +31,7 @@ export default function SinglePlayerPage() {
           connection: {
             roomId,
             status: "playing",
-            mySocketId: socket.id,
+            mySocketId: socket.id || null,
           },
           players,
         });
@@ -60,8 +60,8 @@ export default function SinglePlayerPage() {
     const startingSide =
       side === "random"
         ? Math.random() < 0.5
-          ? SIDES.white
-          : SIDES.black
+          ? Side.white
+          : Side.black
         : side;
 
     const newBoard = { ...gameOptions?.board, side: startingSide };

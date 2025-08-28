@@ -1,5 +1,5 @@
-import { Star, Piece, Square, Side } from "@/types";
-import { FILES, PIECE_NAMES, RANKS, SIDES } from "./constants";
+import { Star, Piece, Square, Side, ChessJsPiece } from "@/types";
+import { FILES, PIECE_NAMES, RANKS } from "./constants";
 
 export const formatTime = (timeMs: number): string => {
   const totalSeconds = Math.floor(timeMs / 1000);
@@ -21,12 +21,12 @@ export const squareToAlgebraic = (
   return `${FILES[adjustedCol]}${RANKS[adjustedRow]}` as Square;
 };
 
-export const getPieceSymbol = (piece: Piece): string => {
+export const getPieceSymbol = (piece: ChessJsPiece): string => {
   if (!piece) {
     return "";
   }
 
-  const color = (piece.color as any) === 'w' ? 'white' : 'black';
+  const color = piece.color === "w" ? "white" : "black";
   const type = PIECE_NAMES[piece.type as keyof typeof PIECE_NAMES];
 
   return `/pieces/${color}/${type}.webp`;
@@ -52,7 +52,7 @@ export const generateRoomId = (): string => {
 // };
 
 export const inverseSide = (side: Side): Side => {
-  return side === SIDES.white ? SIDES.black : SIDES.white;
+  return side === Side.white ? Side.black : Side.white;
 };
 
 export const generateStars = (numStars = 100): Star[] => {
