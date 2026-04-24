@@ -14,7 +14,7 @@
     "@mantine/hooks": "^8.2.7",
     "axios": "^1.11.0",
     "chess.js": "^1.4.0",
-    "next": "15.5.0",
+    "next": "15.5.15",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "socket.io-client": "^4.8.1"
@@ -26,7 +26,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.0",
+    "eslint-config-next": "15.5.15",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
