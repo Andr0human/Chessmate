@@ -2,7 +2,7 @@
 
 import { GameStatusModal } from "@/components/modals";
 import { useGameOptions } from "@/context";
-import { apiInstance, socket } from "@/services";
+import { apiInstance, connectSocket, socket } from "@/services";
 import { BoardState, GameOptions, Side } from "@/types";
 import { MantineProvider } from "@mantine/core";
 import dynamic from "next/dynamic";
@@ -108,7 +108,7 @@ const MultiplayerContent = () => {
       }
     };
 
-    checkRoomStatus().then((roomAvailable) => {
+    checkRoomStatus().then(async (roomAvailable) => {
       console.log("#LOG Room status checked:", roomAvailable);
 
       const { side } = gameOptions?.board || {};
@@ -126,6 +126,15 @@ const MultiplayerContent = () => {
         ...prev,
         board: newBoard,
       }));
+
+      try {
+        await connectSocket();
+      } catch (error) {
+        console.error("#LOG Failed to wake server:", error);
+        alert("Server is unavailable. Please try again in a moment.");
+        router.push("/");
+        return;
+      }
 
       if (socket.connected) {
         createOrJoinRoom(roomId || "", roomAvailable, newBoard);

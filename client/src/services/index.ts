@@ -1,4 +1,4 @@
 import apiInstance from './api';
-import socket from './socket';
+import socket, { connectSocket } from './socket';
 
-export { apiInstance, socket };
+export { apiInstance, connectSocket, socket };
