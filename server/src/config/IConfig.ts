@@ -3,7 +3,7 @@ interface IServerConfig {
   frontendUrl: string;
   port: number;
   cors: {
-    origin: string;
+    origin: string | string[];
     credentials: boolean;
   };
   adminPass: string;
