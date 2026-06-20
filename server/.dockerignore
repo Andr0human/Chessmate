@@ -1,0 +1,14 @@
+# Keep the build context small and deterministic. The image builds its own
+# dependencies and engine binary, so none of these should leak in from the host.
+node_modules
+dist
+public
+.env
+.env.*
+.git
+*.log
+npm-debug.log*
+
+# Engine build artifacts (the binary is compiled fresh inside the image).
+**/*.o
+engine/output
