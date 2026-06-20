@@ -348,7 +348,19 @@ export default function registerGameSocketHandlers(socket: Socket) {
     }
 
     const engine: ChessEngine = ChessEngine.getInstance();
-    const { move, fenAfterMove } = await engine.getMoveObject(room.board.fen, room.board.difficulty || "expert");
+
+    let move: string;
+    let fenAfterMove: string;
+    try {
+      ({ move, fenAfterMove } = await engine.getMoveObject(
+        room.board.fen,
+        room.board.difficulty || "expert"
+      ));
+    } catch (error) {
+      logger.error(`Engine move failed for room ${roomId}: ${error}`);
+      socket.emit("room_error", { message: "Engine failed to produce a move" });
+      return;
+    }
 
     const currentTime: number = Date.now();
     const elapsedSeconds: number = (currentTime - room.lastTimeStamp) / 1000;
