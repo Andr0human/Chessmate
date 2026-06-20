@@ -31,3 +31,8 @@ coverage/
 
 # Others
 .DS_Store
+
+# md files
+*.md
+!README.md
+docs/
