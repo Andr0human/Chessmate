@@ -1,0 +1,5 @@
+# Engine binaries are built per-platform and never committed.
+#   - Linux 'elsa'      -> compiled in the Docker image at deploy time
+#   - Windows 'elsa.exe' -> built locally from the engine repo for native dev
+public/elsa
+public/elsa.exe

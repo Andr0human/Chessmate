@@ -1,0 +1,3 @@
+[submodule "server/engine"]
+	path = server/engine
+	url = https://github.com/Andr0human/chess_engine.git
