@@ -9,20 +9,23 @@ const parseEngineOutput = (output: string): string[] => {
   return engineOutput;
 };
 
-const buildGoCommand = (enginePath: string, options: IGoRequest): string => {
-  let command = `${enginePath} go`;
+// Build the argv array for `elsa go ...` (no shell). Each element becomes a
+// distinct argv token, so space-containing values like the FEN are passed
+// verbatim with no shell interpretation — see execFile in Engine.ts.
+const buildGoArgs = (options: IGoRequest): string[] => {
+  const args: string[] = ["go"];
 
   for (const [key, value] of Object.entries(options)) {
-    if (key == "debug" && value) {
-      command += ` debug`;
-    } else if (key == "fen" && value) {
-      command += ` fen "${value}"`;
+    if (key === "debug" && value) {
+      args.push("debug");
+    } else if (key === "fen" && value) {
+      args.push("fen", String(value));
     } else if (value) {
-      command += ` ${key} ${value}`;
+      args.push(key, String(value));
     }
   }
 
-  return command;
+  return args;
 };
 
-export { parseEngineOutput, buildGoCommand };
+export { parseEngineOutput, buildGoArgs };
