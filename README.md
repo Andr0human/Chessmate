@@ -20,7 +20,7 @@ A real-time, full-stack chess web app — play live games against a friend over 
 | --- | --- |
 | **Client** | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Mantine, `chess.js`, `socket.io-client` |
 | **Server** | Express 5, Socket.IO, TypeScript, Winston |
-| **Engine** | A native chess engine binary, invoked as a child process |
+| **Engine** | A native C++ chess engine (`elsa`), compiled from source and invoked as a child process |
 
 ## Architecture
 
@@ -41,8 +41,14 @@ This deliberate split keeps the server lightweight (it never bundles chess logic
 ### 1. Clone
 
 ```bash
-git clone https://github.com/Andr0human/Chessmate.git
+git clone --recurse-submodules https://github.com/Andr0human/Chessmate.git
 cd Chessmate
+```
+
+The chess engine source lives in a git submodule at `server/engine`. If you already cloned without `--recurse-submodules`, fetch it with:
+
+```bash
+git submodule update --init
 ```
 
 ### 2. Start the server
@@ -67,7 +73,19 @@ npm run dev        # Next.js dev server on http://localhost:3000
 
 Open [http://localhost:3000](http://localhost:3000) and start a game.
 
-> Single-player mode requires the native engine binary in `server/public/` (`elsa.exe` on Windows, `elsa` otherwise), which ships with the repo.
+### 4. (Optional) Build the chess engine for single-player
+
+The engine binary is **not** committed — it is compiled per platform. Multiplayer works without it; single-player needs it present in `server/public/`.
+
+For local development, build it from the submodule (requires a C++ toolchain with `make` and OpenMP — e.g. g++/MinGW, or build under WSL):
+
+```bash
+cd server/engine
+make elsa                     # produces output/elsa (Linux/macOS) or output/elsa.exe (Windows)
+cp output/elsa* ../public/    # copy the binary next to the server
+```
+
+The server auto-selects `elsa.exe` on Windows and `elsa` otherwise. Alternatively, run the server via Docker, which compiles the engine for you — see [Deployment](#deployment).
 
 ## Environment variables
 
@@ -106,11 +124,26 @@ Open [http://localhost:3000](http://localhost:3000) and start a game.
 | --- | --- |
 | `npm start` | Dev server (ts-node + nodemon, hot reload) |
 | `npm run build` | Compile TypeScript to `dist/` |
-| `npm run server` | Run the compiled build from `dist/` |
+| `npm run server` | Run the compiled build from `dist/` (nodemon) |
+| `npm run serve` | Run the compiled build from `dist/` (plain `node`, used in production) |
 
 ## Deployment
 
 The client and server deploy independently. Point the client's `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_SOCKET_URL` at the deployed server, and set the server's `CORS_ORIGIN` (valid JSON) and `FRONTEND_URL` to the client's origin. The live demo runs the client and server on separate hosts.
+
+### Server (Docker)
+
+The server ships a multi-stage [`server/Dockerfile`](server/Dockerfile) that compiles the `elsa` engine from the `server/engine` submodule and produces a fresh Linux binary on every build — no engine binaries are committed to the repo. Build and run it from the `server/` directory:
+
+```bash
+cd server
+docker build -t chessmate-server .
+docker run -p 8080:8080 --env-file .env chessmate-server
+```
+
+On a Docker host such as Render, set the service's **Root Directory** to `server`, use the **Docker** runtime, and ensure submodules are fetched (automatic for public repositories). The engine is recompiled with a portable instruction set, so it runs across cloud CPUs without `SIGILL`.
+
+> **Tip:** the frontend and backend should share a registrable domain (e.g. `app.example.com` + `api.example.com`). Cross-site API calls are frequently blocked by browser shields and ad blockers (`ERR_BLOCKED_BY_CLIENT`); a same-site API subdomain avoids this.
 
 ## License
 
