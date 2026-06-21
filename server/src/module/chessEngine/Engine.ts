@@ -3,8 +3,8 @@ import fs from "fs";
 import path from "path";
 import { promisify } from "util";
 import logger from "../../lib/logger";
-import { IGoRequest } from "./entities";
-import { buildGoArgs, parseEngineOutput } from "./helpers";
+import { IAnalysisResult, IGoRequest } from "./entities";
+import { buildGoArgs, parseAnalysisOutput, parseEngineOutput } from "./helpers";
 
 // execFile (no shell): args are passed as an array, so client-controlled values
 // like the FEN can never be interpreted as shell syntax — closes the command
@@ -116,6 +116,25 @@ class ChessEngine {
       logger.error(`Error getting engine move: ${error}`);
       throw error;
     }
+  };
+
+  // Analyze a position: run a time-bounded search and parse `elsa go`'s table
+  // output into a structured evaluation (score/depth/nodes/PV). Same safe
+  // execFile pattern as getMoveObject — the FEN is an argv element, never shell.
+  analyze = async (
+    fen: string,
+    searchSeconds: number
+  ): Promise<IAnalysisResult> => {
+    const result = await execFileP(this.enginePath, [
+      "go",
+      "fen",
+      fen,
+      "time",
+      String(searchSeconds),
+    ]);
+    const engineOutput: string[] = parseEngineOutput(result.stdout);
+
+    return parseAnalysisOutput(engineOutput);
   };
 
   speedTest = async (): Promise<string[]> => {

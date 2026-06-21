@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { Socket, Server as SocketIOServer } from "socket.io";
 import { IServerConfig } from "./config";
 import logger from "./lib/logger";
+import { registerEngineSocketHandlers } from "./module/chessEngine";
 import { registerGameSocketHandlers } from "./module/game";
 import router from "./routes";
 
@@ -65,6 +66,7 @@ class Server {
       logger.info(`socket connected ${socket.id}`);
 
       registerGameSocketHandlers(socket);
+      registerEngineSocketHandlers(socket);
     });
 
     this.httpServer.listen(this.config.port, () => {

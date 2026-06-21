@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { CHESS_PIECES } from "@/lib/constants";
 import { StartOptionModal } from "@/components/modals";
@@ -14,6 +15,7 @@ const MainMenu = () => {
     "singleplayer"
   );
   const [basePath, setBasePath] = useState<string>("");
+  const router = useRouter();
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -66,6 +68,13 @@ const MainMenu = () => {
               }}
             >
               Play with Friend
+            </button>
+
+            <button
+              className="button-primary button-purple"
+              onClick={() => router.push("/analysis")}
+            >
+              Analysis
             </button>
           </div>
         </div>

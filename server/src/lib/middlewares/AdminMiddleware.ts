@@ -14,33 +14,32 @@ const safeEqual = (a: string, b: string): boolean => {
 };
 
 class AdminMiddleware {
+  // Shared admin-secret check, reusable outside the Express request cycle (e.g.
+  // Socket.IO handlers, which never pass through this middleware). Fails closed
+  // when ADMIN_PASS is unset so protected features are unreachable rather than
+  // guarded by a guessable default. Constant-time compare via safeEqual.
+  static verify = (provided?: string): boolean => {
+    const expected = serverConfig.adminPass;
+
+    if (!expected) {
+      logger.error("AdminMiddleware: ADMIN_PASS is not set; rejecting request");
+      return false;
+    }
+
+    return !!provided && safeEqual(provided, expected);
+  };
+
   static checkPassword = (
     req: Request,
     res: Response,
     next: NextFunction
   ): void => {
     try {
-      const expected = serverConfig.adminPass;
-
-      // Fail closed: if no admin password is configured, the protected routes
-      // are unreachable rather than guarded by a guessable default.
-      if (!expected) {
-        logger.error(
-          "AdminMiddleware: ADMIN_PASS is not set; rejecting admin request"
-        );
-        new SystemResponse(
-          res,
-          "Unauthorized: admin access is not configured",
-          null
-        ).unauthorized();
-        return;
-      }
-
       // Read from a header (not the query string) so the secret doesn't leak
       // into access logs, proxy logs, or browser history.
       const provided = req.header("x-admin-pass");
 
-      if (!provided || !safeEqual(provided, expected)) {
+      if (!AdminMiddleware.verify(provided)) {
         new SystemResponse(
           res,
           "Unauthorized: Invalid admin password",

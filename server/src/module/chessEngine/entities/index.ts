@@ -1,3 +1,4 @@
+import IAnalysisResult from "./IAnalysisResult";
 import IGoRequest from "./IGoRequest";
 
-export { IGoRequest };
+export { IGoRequest, IAnalysisResult };
