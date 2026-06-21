@@ -45,7 +45,14 @@ class Server {
 
   private configureMiddlewares(): void {
     this.app.use(express.json());
-    this.app.use(cors());
+    // Apply the same configured origin to the REST API as Socket.IO uses, so
+    // /api/* isn't allow-all while the realtime layer is locked down.
+    this.app.use(
+      cors({
+        origin: this.config.cors.origin,
+        credentials: this.config.cors.credentials,
+      })
+    );
     this.app.use(morgan("dev"));
   }
 
