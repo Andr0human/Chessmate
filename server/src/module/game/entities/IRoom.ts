@@ -10,6 +10,8 @@ interface IRoom {
   status: IStatus;
   lastTimeStamp: number;
   gameType: IGameType;
+  // socket.id of the player with an outstanding draw offer, if any.
+  drawOfferedBy?: string;
 }
 
 export default IRoom;
