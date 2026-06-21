@@ -11,7 +11,13 @@ import {
   IStartGameOptions,
   IStatus,
 } from "./entities";
-import { gameRooms, inverseSide, isPlayerInRoom } from "./helpers";
+import {
+  clearRoomTimeout,
+  gameRooms,
+  inverseSide,
+  isPlayerInRoom,
+  scheduleRoomTimeout,
+} from "./helpers";
 
 export default function registerGameSocketHandlers(socket: Socket) {
   socket.on("room_create", (roomId: string, gameOptions: IStartGameOptions) => {
@@ -102,6 +108,14 @@ export default function registerGameSocketHandlers(socket: Socket) {
         return;
       }
 
+      // The clock starts now that the engine is confirmed ready (the readiness
+      // check above can take a moment) — anchor lastTimeStamp here.
+      const room = gameRooms.get(roomId);
+      if (room) {
+        room.lastTimeStamp = Date.now();
+        scheduleRoomTimeout(room, socket.nsp);
+      }
+
       logger.info(`Room created: ${roomId} by ${socket.id}`);
       socket.join(roomId);
       socket.emit("room_created_singleplayer", roomId, {
@@ -152,6 +166,9 @@ export default function registerGameSocketHandlers(socket: Socket) {
 
     socket.to(roomId).emit("player_joined", newOptions);
     logger.info(`Room ${roomId} joined by ${socket.id}`);
+
+    // Game is now PLAYING — start the flag-fall timer for the side to move.
+    scheduleRoomTimeout(room, socket.nsp);
   });
 
   socket.on("move_sent", (roomId: string, moveUpdate: IMoveUpdate) => {
@@ -210,6 +227,9 @@ export default function registerGameSocketHandlers(socket: Socket) {
     // A move supersedes any pending draw offer for the old position.
     delete room.drawOfferedBy;
     gameRooms.set(roomId, room);
+
+    // Turn flipped — restart the flag-fall timer for the new side to move.
+    scheduleRoomTimeout(room, socket.nsp);
 
     logger.info(`sending move ${move} to room ${roomId}`);
     socket.to(roomId).emit("move_received", {
@@ -279,6 +299,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
     }
 
     logger.info(`Draw accepted in room ${roomId}`);
+    clearRoomTimeout(room);
     gameRooms.delete(roomId);
 
     // Notify all clients in the room about the draw
@@ -343,6 +364,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
     }
 
     logger.info(`Game resigned in room ${roomId} by ${socket.id}`);
+    clearRoomTimeout(room);
     gameRooms.delete(roomId);
 
     // Notify all clients in the room about the resignation
@@ -361,6 +383,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
         delete player?.id;
 
         if (room.gameType === IGameType.SINGLEPLAYER) {
+          clearRoomTimeout(room);
           gameRooms.delete(roomId);
           logger.info(`Room ${roomId} deleted!`);
           continue;
@@ -368,6 +391,7 @@ export default function registerGameSocketHandlers(socket: Socket) {
       }
 
       if (room.players.every((player) => !player.id)) {
+        clearRoomTimeout(room);
         gameRooms.delete(roomId);
       } else {
         gameRooms.set(roomId, room);
@@ -417,6 +441,12 @@ export default function registerGameSocketHandlers(socket: Socket) {
       return;
     }
 
+    // The room may have ended (resign/disconnect) while the engine was thinking.
+    if (gameRooms.get(roomId)?.status !== IStatus.PLAYING) {
+      logger.info(`Room ${roomId} ended before engine move could be applied`);
+      return;
+    }
+
     const currentTime: number = Date.now();
     const elapsedSeconds: number = (currentTime - room.lastTimeStamp) / 1000;
     let timeLeft: number = Math.max(0, player.timeLeft - elapsedSeconds);
@@ -434,6 +464,9 @@ export default function registerGameSocketHandlers(socket: Socket) {
       side: inverseSide(room.board.side),
     };
     gameRooms.set(roomId, room);
+
+    // Turn is back to the human — start their flag-fall timer.
+    scheduleRoomTimeout(room, socket.nsp);
 
     logger.info(`sending move ${move} to room ${roomId}`);
     socket.nsp.to(roomId).emit("move_received", {

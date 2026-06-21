@@ -22,6 +22,7 @@ import {
   Square,
   GameResult,
   MoveReceived,
+  GameOverTimeout,
   GameWinner,
   DrawReason,
   Side,
@@ -75,16 +76,37 @@ const ChessBoard = ({
 
   // Refs
   const boardRef = useRef(null);
-  const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  // Mirror of gameOver so socket handlers (which close over a stale value) can
+  // read the latest state without re-subscribing.
+  const gameOverRef = useRef(false);
 
-  // Clock state
+  // Clock state. `white`/`black` hold the authoritative remaining time (ms) at
+  // the last server sync; `anchorAt` is the local `performance.now()` of that
+  // sync. The active side's displayed time is derived as base − elapsed, so all
+  // clients agree regardless of timer phase/throttling. See getDisplayedTime.
   const [clock, setClock] = useState({
-    white: 60,
-    black: 60,
+    white: 60000,
+    black: 60000,
     active: Side.white,
+    anchorAt: 0,
     upper: { side: Side.black, name: "" },
     lower: { side: Side.white, name: "" },
   });
+  // Bumped by a lightweight ticker purely to re-render the running clock.
+  const [nowTick, setNowTick] = useState(0);
+
+  // Remaining time (ms) to display for a side: the active side counts down from
+  // its anchor; the idle side shows its stored base.
+  const getDisplayedTime = useCallback(
+    (side: Side): number => {
+      const base = clock[side];
+      if (clock.active === side && isGameReady && clock.anchorAt > 0) {
+        return Math.max(0, base - (nowTick - clock.anchorAt));
+      }
+      return Math.max(0, base);
+    },
+    [clock, nowTick, isGameReady]
+  );
 
   // Socket connection and move handling
   useEffect(() => {
@@ -120,6 +142,7 @@ const ChessBoard = ({
               white: whitePlayer.timeLeft * 1000,
               black: blackPlayer.timeLeft * 1000,
               active: board.side as Side,
+              anchorAt: performance.now(),
             }));
           }
         }
@@ -169,6 +192,18 @@ const ChessBoard = ({
       }
     });
 
+    // Authoritative flag-fall from the server (clock authority).
+    socket.on("game_over_timeout", ({ winner }: GameOverTimeout) => {
+      // Ignore if the game already ended (e.g. checkmate) — the server timer
+      // may still fire late for the side that was to move.
+      if (gameOverRef.current) {
+        return;
+      }
+      setGameResult("timeout");
+      setGameWinner(winner);
+      setGameOver(true);
+    });
+
     // Clean up the socket listeners on component unmount
     return () => {
       socket.off("move_received");
@@ -176,8 +211,14 @@ const ChessBoard = ({
       socket.off("draw_accepted");
       socket.off("draw_rejected");
       socket.off("game_resigned");
+      socket.off("game_over_timeout");
     };
   }, [game, gameOptions.players]);
+
+  // Keep the ref in sync so socket handlers see the latest game-over state.
+  useEffect(() => {
+    gameOverRef.current = gameOver;
+  }, [gameOver]);
 
   useEffect(() => {
     if (gameOptions?.connection?.status === "playing") {
@@ -231,6 +272,7 @@ const ChessBoard = ({
           white: whiteTimeMs,
           black: blackTimeMs,
           active: gameOptions.board.side as Side,
+          anchorAt: performance.now(),
           upper: {
             side: sideUpper,
             name: playerUpper?.name || "Player 2",
@@ -244,37 +286,22 @@ const ChessBoard = ({
     }
   }, [gameOptions?.connection?.status]);
 
-  // Handle timer
+  // Clock ticker: this only forces a re-render so the active side's derived
+  // time (getDisplayedTime) updates. It never mutates the clock value itself —
+  // the value comes from the server-anchored base minus real elapsed time, so
+  // both clients stay in sync regardless of timer phase or tab throttling.
   useEffect(() => {
-    if (!gameOptions.board?.timeControl || !isGameReady) {
+    if (!gameOptions.board?.timeControl || !isGameReady || gameOver) {
       return;
     }
 
-    // Clear any existing timer
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
+    setNowTick(performance.now());
+    const interval = setInterval(() => {
+      setNowTick(performance.now());
+    }, 200);
 
-    // Start a new timer based on whose turn it is
-    const activeColor = game.turn() === "w" ? Side.white : Side.black;
-    setClock((prev) => ({
-      ...prev,
-      active: activeColor,
-    }));
-
-    timerInterval.current = setInterval(() => {
-      setClock((prev) => ({
-        ...prev,
-        [activeColor]: Math.max(0, prev[activeColor] - 1000),
-      }));
-    }, 1000);
-
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
-      }
-    };
-  }, [gameOptions.board?.side, gameOptions.board?.timeControl, isGameReady]);
+    return () => clearInterval(interval);
+  }, [gameOptions.board?.timeControl, isGameReady, gameOver]);
 
   useEffect(() => {
     const player = gameOptions.players.find(
@@ -322,26 +349,9 @@ const ChessBoard = ({
       return;
     }
 
-    // Check for timeout
-    if (gameOptions.board?.timeControl > 0) {
-      const whiteTime = clock.white;
-      const blackTime = clock.black;
-
-      if (whiteTime <= 0) {
-        setGameResult("timeout");
-        setGameWinner(Side.black);
-        setGameOver(true);
-        return;
-      }
-
-      if (blackTime <= 0) {
-        setGameResult("timeout");
-        setGameWinner(Side.white);
-        setGameOver(true);
-        return;
-      }
-    }
-  }, [game, gameOver, clock, gameOptions.board?.timeControl]);
+    // Timeouts are decided authoritatively by the server, which emits
+    // `game_over_timeout`. The client no longer self-declares on a local clock.
+  }, [game, gameOver]);
 
   // Check for game over after each move
   useEffect(() => {
@@ -364,28 +374,34 @@ const ChessBoard = ({
         to: move.to as Square,
       });
 
-      console.log("#LOG move_sent", roomId, {
-        move: move.san,
-        socketId: socket.id,
-        fenAfterMove: game.fen(),
-      });
-
       socket.emit("move_sent", roomId, {
         move: move.san,
         socketId: socket.id,
         fenAfterMove: game.fen(),
       });
 
-      // Add increment to player's time if provided
-      if (gameOptions.board?.increment > 0) {
-        const incrementMs = gameOptions.board.increment * 1000;
-        const playerColor = move.color === "w" ? Side.white : Side.black;
+      // Optimistically flip the clock locally: settle the mover's running time
+      // at this instant, apply increment, hand the active clock to the opponent,
+      // and re-anchor. The server confirms these values on the opponent's reply.
+      const moverColor = move.color === "w" ? Side.white : Side.black;
+      const opponentColor = inverseSide(moverColor);
+      const incrementMs = (gameOptions.board?.increment || 0) * 1000;
 
-        setClock((prev) => ({
+      setClock((prev) => {
+        const now = performance.now();
+        const moverElapsed =
+          prev.active === moverColor && prev.anchorAt > 0
+            ? Math.max(0, now - prev.anchorAt)
+            : 0;
+        const moverBase = Math.max(0, prev[moverColor] - moverElapsed) + incrementMs;
+
+        return {
           ...prev,
-          [playerColor]: prev[playerColor] + incrementMs,
-        }));
-      }
+          [moverColor]: moverBase,
+          active: opponentColor,
+          anchorAt: now,
+        };
+      });
 
       updateFen(game.fen());
 
@@ -855,13 +871,13 @@ const ChessBoard = ({
                   : "bg-black bg-opacity-50 text-white"
               }`}
             >
-              {formatTime(clock[playerInfo.side])}
+              {formatTime(getDisplayedTime(playerInfo.side))}
             </div>
           )}
         </div>
       );
     },
-    [clock, gameOptions.board?.timeControl, isGameReady]
+    [clock, getDisplayedTime, gameOptions.board?.timeControl, isGameReady]
   );
 
   // Handle draw offer acceptance

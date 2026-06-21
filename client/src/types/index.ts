@@ -41,6 +41,6 @@ export type {
 
 export { DrawReason } from "./game";
 
-export type { MoveReceived } from "./socket";
+export type { GameOverTimeout, MoveReceived } from "./socket";
 
 export type { Star } from "./star";

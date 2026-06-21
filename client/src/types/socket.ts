@@ -1,4 +1,4 @@
-import type { Move } from "./chess";
+import type { Move, Side } from "./chess";
 import type { BoardState, Player } from "./game";
 
 interface MoveReceived {
@@ -11,4 +11,10 @@ interface MoveSent {
   move: Move;
 }
 
-export type { MoveReceived, MoveSent };
+// Authoritative flag-fall emitted by the server when a player's clock hits 0.
+interface GameOverTimeout {
+  winner: Side;
+  loser: Side;
+}
+
+export type { GameOverTimeout, MoveReceived, MoveSent };
