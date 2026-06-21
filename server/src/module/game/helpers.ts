@@ -14,6 +14,10 @@ export const checkGameRoomExists = (roomId: string): boolean => {
   return room.players.some(({ id }) => !!id);
 };
 
+export const isPlayerInRoom = (room: IRoom, socketId: string): boolean => {
+  return room.players.some((player) => player.id === socketId);
+};
+
 export const getAllGameRooms = (): IRoom[] => {
   return Array.from(gameRooms.values());
 };

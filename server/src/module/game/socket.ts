@@ -11,7 +11,7 @@ import {
   IStartGameOptions,
   IStatus,
 } from "./entities";
-import { gameRooms, inverseSide } from "./helpers";
+import { gameRooms, inverseSide, isPlayerInRoom } from "./helpers";
 
 export default function registerGameSocketHandlers(socket: Socket) {
   socket.on("room_create", (roomId: string, gameOptions: IStartGameOptions) => {
@@ -155,7 +155,8 @@ export default function registerGameSocketHandlers(socket: Socket) {
   });
 
   socket.on("move_sent", (roomId: string, moveUpdate: IMoveUpdate) => {
-    const { move, socketId, fenAfterMove }: IMoveUpdate = moveUpdate;
+    // Ignore moveUpdate.socketId: the mover is authoritatively the sender.
+    const { move, fenAfterMove }: IMoveUpdate = moveUpdate;
 
     logger.info(`move: ${move} sent in room ${roomId}`);
 
@@ -174,11 +175,19 @@ export default function registerGameSocketHandlers(socket: Socket) {
     }
 
     const player: IPlayer | undefined = room.players.find(
-      (player) => player.id === socketId
+      (player) => player.id === socket.id
     );
 
     if (!player) {
       socket.emit("room_error", { message: "Not a player in this room" });
+      return;
+    }
+
+    // A player may only move on their own turn — blocks moving for the
+    // opponent (clock-draining / turn-flipping) and double moves.
+    if (player.side !== room.board.side) {
+      logger.error(`Out-of-turn move by ${socket.id} in room ${roomId}`);
+      socket.emit("room_error", { message: "Not your turn" });
       return;
     }
 
@@ -198,6 +207,8 @@ export default function registerGameSocketHandlers(socket: Socket) {
       fen: fenAfterMove,
       side: inverseSide(room.board.side),
     };
+    // A move supersedes any pending draw offer for the old position.
+    delete room.drawOfferedBy;
     gameRooms.set(roomId, room);
 
     logger.info(`sending move ${move} to room ${roomId}`);
@@ -224,6 +235,15 @@ export default function registerGameSocketHandlers(socket: Socket) {
       return;
     }
 
+    if (!isPlayerInRoom(room, socket.id)) {
+      logger.error(`Non-player ${socket.id} tried to offer draw in ${roomId}`);
+      socket.emit("room_error", { message: "Not a player in this room" });
+      return;
+    }
+
+    room.drawOfferedBy = socket.id;
+    gameRooms.set(roomId, room);
+
     logger.info(`Draw offered in room ${roomId} by ${socket.id}`);
     socket.to(roomId).emit("draw_offered", socket.id);
   });
@@ -241,6 +261,20 @@ export default function registerGameSocketHandlers(socket: Socket) {
     if (room.status !== IStatus.PLAYING) {
       logger.error(`Room "${roomId}" not in playing state when accepting draw`);
       socket.emit("room_error", { message: "No game in progress" });
+      return;
+    }
+
+    if (!isPlayerInRoom(room, socket.id)) {
+      logger.error(`Non-player ${socket.id} tried to accept draw in ${roomId}`);
+      socket.emit("room_error", { message: "Not a player in this room" });
+      return;
+    }
+
+    // Only the opponent of the offering player may accept — guards against a
+    // player accepting their own offer to force a unilateral draw.
+    if (!room.drawOfferedBy || room.drawOfferedBy === socket.id) {
+      logger.error(`Invalid draw acceptance by ${socket.id} in ${roomId}`);
+      socket.emit("room_error", { message: "No draw offer to accept" });
       return;
     }
 
@@ -267,6 +301,21 @@ export default function registerGameSocketHandlers(socket: Socket) {
       return;
     }
 
+    if (!isPlayerInRoom(room, socket.id)) {
+      logger.error(`Non-player ${socket.id} tried to reject draw in ${roomId}`);
+      socket.emit("room_error", { message: "Not a player in this room" });
+      return;
+    }
+
+    if (!room.drawOfferedBy || room.drawOfferedBy === socket.id) {
+      logger.error(`Invalid draw rejection by ${socket.id} in ${roomId}`);
+      socket.emit("room_error", { message: "No draw offer to reject" });
+      return;
+    }
+
+    delete room.drawOfferedBy;
+    gameRooms.set(roomId, room);
+
     logger.info(`Draw rejected in room ${roomId}`);
     socket.to(roomId).emit("draw_rejected");
   });
@@ -284,6 +333,12 @@ export default function registerGameSocketHandlers(socket: Socket) {
     if (room.status !== IStatus.PLAYING) {
       logger.error(`Room "${roomId}" not in playing state when resigning`);
       socket.emit("room_error", { message: "No game in progress" });
+      return;
+    }
+
+    if (!isPlayerInRoom(room, socket.id)) {
+      logger.error(`Non-player ${socket.id} tried to resign in ${roomId}`);
+      socket.emit("room_error", { message: "Not a player in this room" });
       return;
     }
 
