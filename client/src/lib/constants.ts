@@ -27,6 +27,10 @@ export const DIFFICULTY_LEVELS: DifficultyOption[] = [
   { value: "expert", label: "Expert" },
 ];
 
+// Standard starting position — used as the default/Reset FEN in Analysis mode.
+export const ANALYSIS_START_FEN =
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 export const FILES: File[] = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
 export const RANKS: Rank[] = ["8", "7", "6", "5", "4", "3", "2", "1"];

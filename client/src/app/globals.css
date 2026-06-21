@@ -15,6 +15,8 @@
   --bg-green-500: #22c55e;
   --bg-blue-600: #2563eb;
   --bg-blue-500: #3b82f6;
+  --bg-purple-600: #9333ea;
+  --bg-purple-500: #a855f7;
   --bg-gray-800: #1f2937;
   --bg-gray-700: #374151;
 }
@@ -48,6 +50,14 @@ body {
 
 .button-blue:hover {
   background-color: var(--bg-blue-500);
+}
+
+.button-purple {
+  background-color: var(--bg-purple-600);
+}
+
+.button-purple:hover {
+  background-color: var(--bg-purple-500);
 }
 
 .hidden {
