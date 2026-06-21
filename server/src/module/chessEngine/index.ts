@@ -1,4 +1,4 @@
-import ChessEngine from "./Engine";
+import ChessEngine, { VALID_DIFFICULTIES } from "./Engine";
 import chessEngineRouter from "./Router";
 
-export { ChessEngine, chessEngineRouter };
+export { ChessEngine, VALID_DIFFICULTIES, chessEngineRouter };

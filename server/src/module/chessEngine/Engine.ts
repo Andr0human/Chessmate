@@ -14,7 +14,7 @@ const execFileP = promisify(execFile);
 // The only difficulties elsa recognizes (task.cpp:setParamswithDifficulty).
 // Anything else is coerced to the default so unvalidated input can't reach the
 // engine — defense in depth on top of execFile.
-const VALID_DIFFICULTIES = new Set([
+export const VALID_DIFFICULTIES = new Set([
   "beginner",
   "easy",
   "medium",

@@ -1,11 +1,64 @@
 import { Namespace } from "socket.io";
 import logger from "../../lib/logger";
-import { IColor, IPlayer, IRoom, IStatus } from "./entities";
+import { VALID_DIFFICULTIES } from "../chessEngine";
+import { IColor, IPlayer, IRoom, IStartGameOptions, IStatus } from "./entities";
 
 export const gameRooms: Map<string, IRoom> = new Map();
 
 export const inverseSide = (side: IColor): IColor => {
   return side === IColor.WHITE ? IColor.BLACK : IColor.WHITE;
+};
+
+// Bounds for client-supplied clock values. The UI only offers up to 1800s
+// (30 min) time control and 30s increment; these caps leave generous headroom
+// while staying far under setTimeout's ~24.8-day ceiling, which a huge
+// timeControl would otherwise overflow in scheduleRoomTimeout. timeControl 0 is
+// the legitimate "No Time Limit" option, so the floor is 0, not 1.
+const MAX_TIME_CONTROL = 86_400; // 24h in seconds
+const MAX_INCREMENT = 300; // 5 min per move
+
+// Validate the game parameters a client supplies on room creation. The client
+// is the chess-rules authority but these values feed the server's clock math
+// and (for difficulty) the engine, so they're checked here at the boundary.
+// Returns an error message when invalid, or null when the options are sound.
+// `requireDifficulty` is set for single-player, where the engine needs it.
+export const validateGameOptions = (
+  options: IStartGameOptions,
+  { requireDifficulty = false }: { requireDifficulty?: boolean } = {}
+): string | null => {
+  if (!options || typeof options !== "object") {
+    return "Missing game options.";
+  }
+
+  // "random" is resolved to white/black client-side before emit, so only the
+  // two concrete colors are valid here.
+  if (options.side !== IColor.WHITE && options.side !== IColor.BLACK) {
+    return "Invalid side.";
+  }
+
+  if (
+    !Number.isInteger(options.timeControl) ||
+    options.timeControl < 0 ||
+    options.timeControl > MAX_TIME_CONTROL
+  ) {
+    return "Invalid time control.";
+  }
+
+  if (
+    !Number.isInteger(options.increment) ||
+    options.increment < 0 ||
+    options.increment > MAX_INCREMENT
+  ) {
+    return "Invalid increment.";
+  }
+
+  if (options.difficulty === undefined) {
+    if (requireDifficulty) return "Missing difficulty.";
+  } else if (!VALID_DIFFICULTIES.has(options.difficulty)) {
+    return "Invalid difficulty.";
+  }
+
+  return null;
 };
 
 // Cancel a room's pending flag-fall timer, if any.

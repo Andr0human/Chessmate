@@ -17,10 +17,24 @@ import {
   inverseSide,
   isPlayerInRoom,
   scheduleRoomTimeout,
+  validateGameOptions,
 } from "./helpers";
 
 export default function registerGameSocketHandlers(socket: Socket) {
   socket.on("room_create", (roomId: string, gameOptions: IStartGameOptions) => {
+    const validationError = validateGameOptions(gameOptions);
+    if (validationError) {
+      socket.emit("room_error", { message: validationError });
+      return;
+    }
+
+    // Reject reuse of an in-use id so a client can't clobber/hijack a live room
+    // (the normal second player joins via room_join, never re-creates).
+    if (gameRooms.has(roomId)) {
+      socket.emit("room_error", { message: "Room already exists." });
+      return;
+    }
+
     const board: IBoard = {
       side: IColor.WHITE,
       timeControl: gameOptions.timeControl,
@@ -65,7 +79,27 @@ export default function registerGameSocketHandlers(socket: Socket) {
   socket.on(
     "room_create_singleplayer",
     async (gameOptions: IStartGameOptions) => {
+      const validationError = validateGameOptions(gameOptions, {
+        requireDifficulty: true,
+      });
+      if (validationError) {
+        socket.emit("room_error", { message: validationError });
+        return;
+      }
+
       const roomId = `single_${socket.id}_${Date.now()}`;
+
+      // Confirm the engine is ready *before* creating the room, so a failed
+      // readiness check can't leave an orphaned PLAYING room (with no flag-fall
+      // timer to ever clean it up) leaking in memory.
+      const engine = ChessEngine.getInstance();
+      const engineReady = await engine.engineReady();
+
+      if (!engineReady) {
+        logger.error(`Engine not ready for room ${roomId}`);
+        socket.emit("room_error", { message: "Computer not available!" });
+        return;
+      }
 
       const board: IBoard = {
         side: IColor.WHITE,
@@ -90,31 +124,18 @@ export default function registerGameSocketHandlers(socket: Socket) {
         },
       ];
 
-      gameRooms.set(roomId, {
+      // The clock starts now that the engine is confirmed ready (the readiness
+      // check above can take a moment) — anchor lastTimeStamp here.
+      const room: IRoom = {
         id: roomId,
         status: IStatus.PLAYING,
         players,
         board,
         lastTimeStamp: Date.now(),
         gameType: IGameType.SINGLEPLAYER,
-      });
-
-      const engine = ChessEngine.getInstance();
-      const engineReady = await engine.engineReady();
-
-      if (!engineReady) {
-        logger.error(`Engine not ready for room ${roomId}`);
-        socket.emit("room_error", { message: "Computer not available!" });
-        return;
-      }
-
-      // The clock starts now that the engine is confirmed ready (the readiness
-      // check above can take a moment) — anchor lastTimeStamp here.
-      const room = gameRooms.get(roomId);
-      if (room) {
-        room.lastTimeStamp = Date.now();
-        scheduleRoomTimeout(room, socket.nsp);
-      }
+      };
+      gameRooms.set(roomId, room);
+      scheduleRoomTimeout(room, socket.nsp);
 
       logger.info(`Room created: ${roomId} by ${socket.id}`);
       socket.join(roomId);
