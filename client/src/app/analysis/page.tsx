@@ -120,16 +120,32 @@ export default function AnalysisPage() {
   }, []);
 
   // Wake + connect the socket once authenticated (no server hit for visitors
-  // who never enter the password).
+  // who never enter the password). connState must track the *real* connection:
+  // we flip to "ready" on the socket's own `connect` event, not merely when
+  // connectSocket() resolves (which only means connect() was *called*).
+  // Otherwise on a cold-started server the first auto-analyze races ahead of the
+  // handshake — its `if (socket.connected)` emit guard sees `false`, silently
+  // drops the request, and never retries, leaving the panel stuck on "analyzing…".
   useEffect(() => {
     if (!adminPass) return;
 
     let cancelled = false;
     setConnState("connecting");
+
+    const onConnect = () => {
+      if (!cancelled) setConnState("ready");
+    };
+    const onConnectError = () => {
+      if (!cancelled) setConnState("error");
+    };
+    socket.on("connect", onConnect);
+    socket.on("connect_error", onConnectError);
+
     (async () => {
       try {
         await connectSocket();
-        if (!cancelled) setConnState("ready");
+        // Warm socket (e.g. on retry): `connect` won't fire again, so settle here.
+        if (!cancelled && socket.connected) setConnState("ready");
       } catch {
         if (!cancelled) setConnState("error");
       }
@@ -137,6 +153,8 @@ export default function AnalysisPage() {
 
     return () => {
       cancelled = true;
+      socket.off("connect", onConnect);
+      socket.off("connect_error", onConnectError);
     };
   }, [adminPass, retryKey]);
 
