@@ -105,7 +105,7 @@ The server auto-selects `elsa.exe` on Windows and `elsa` otherwise. Alternativel
 | `DEV_MODE` | `development` | Run mode |
 | `CORS_ORIGIN` | `"*"` | Socket.IO allowed origin — **must be valid JSON** (it is `JSON.parse`d), e.g. `"*"` or a JSON array |
 | `CORS_CREDENTIALS` | `false` | Whether to allow credentialed CORS requests |
-| `ADMIN_PASS` | `admin` | Password gating the `/api/engine` debug routes (`?adminPass=`) |
+| `ADMIN_PASS` | _(unset)_ | Password gating the `/api/engine` debug routes and `GET /api/game/all`. Sent via the `x-admin-pass` request header. When unset, those routes are disabled (fail closed). |
 
 ## Available scripts
 
