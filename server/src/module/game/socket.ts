@@ -65,9 +65,6 @@ export default function registerGameSocketHandlers(socket: Socket) {
       gameType: IGameType.MULTIPLAYER,
     });
 
-    // TODO: Add checks if the computer chess engine is available
-    // before creating the room
-
     logger.info(`Room created: ${roomId} by ${socket.id}`);
     socket.join(roomId);
     socket.emit("room_created", roomId, {
@@ -253,6 +250,8 @@ export default function registerGameSocketHandlers(socket: Socket) {
     scheduleRoomTimeout(room, socket.nsp);
 
     logger.info(`sending move ${move} to room ${roomId}`);
+    // socket.to (exclude sender): the human mover already applied their own move
+    // locally, so only the opponent needs the relay. Contrast request_engine_move.
     socket.to(roomId).emit("move_received", {
       move,
       board: room.board,
@@ -490,6 +489,9 @@ export default function registerGameSocketHandlers(socket: Socket) {
     scheduleRoomTimeout(room, socket.nsp);
 
     logger.info(`sending move ${move} to room ${roomId}`);
+    // nsp.to (include sender): the engine is the mover here, so the human who
+    // requested the move must also receive it — unlike move_sent, where the
+    // sender is excluded because they already have their own move.
     socket.nsp.to(roomId).emit("move_received", {
       move,
       board: room.board,

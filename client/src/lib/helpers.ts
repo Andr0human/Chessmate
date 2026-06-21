@@ -43,14 +43,6 @@ export const generateRoomId = (): string => {
   return result;
 };
 
-// export const generateBoardOptions = ({ timeControl:, increment, ...rest }) => {
-//   const options = { ...rest, timeControl: parseInt(timeControl) };
-//   if (increment) {
-//     options.increment = parseInt(increment);
-//   }
-//   return options;
-// };
-
 export const inverseSide = (side: Side): Side => {
   return side === Side.white ? Side.black : Side.white;
 };
