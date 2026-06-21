@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { AdminMiddleware } from "../../lib/middlewares";
 import GameController from "./Controller";
 
 class GameRouter {
@@ -23,7 +24,9 @@ class GameRouter {
       GameController.checkRoomAvailability
     );
 
-    this.router.get("/all", GameController.getAll);
+    // Exposes player socket ids, FENs and clocks for every live room —
+    // admin-only to prevent unauthenticated enumeration of active games.
+    this.router.get("/all", AdminMiddleware.checkPassword, GameController.getAll);
   }
 }
 

@@ -22,7 +22,9 @@ const config: IServerConfig = {
     origin: parseCorsOrigin(process.env.CORS_ORIGIN || "*"),
     credentials: process.env.CORS_CREDENTIALS === "true",
   },
-  adminPass: process.env.ADMIN_PASS || "admin",
+  // No default: when unset, AdminMiddleware fails closed and the admin-gated
+  // routes are unreachable rather than protected by a guessable password.
+  adminPass: process.env.ADMIN_PASS || "",
 };
 
 export default config;
