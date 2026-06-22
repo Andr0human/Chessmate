@@ -1,4 +1,4 @@
-import { IAnalysisResult, IGoRequest } from "./entities";
+import { IGoRequest } from "./entities";
 
 const parseEngineOutput = (output: string): string[] => {
   const lines: string[] = output.split("\n");
@@ -17,91 +17,56 @@ const VALUE_MATE = 16000;
 const MATE_SCORE_THRESHOLD = VALUE_MATE - 500;
 const MATE_PLY_STEP = 20;
 
-// Parse the human-readable table printed by `elsa go` (single_thread.cpp →
-// showLastDepthResult). Each completed depth prints a row shaped:
-//   | <time> | <depth> | <score> | <nodes> | <qnodes> | <pv...>
-// We take the LAST such row (deepest completed iteration). `score` is in pawns
-// and is White-relative / absolute (+ = White better) — the engine converts the
-// negamax score with `eval * (2*side-1)` before printing (search.h), so the
-// client can display it directly with no per-turn flip. The PV is space-separated
-// SAN with a trailing quiescence segment wrapped in ( ... ) that we drop (not
-// part of the real principal variation). Returns a terminal marker when the
-// position has no legal moves (checkmate/stalemate), where it emits no table rows.
-const parseAnalysisOutput = (lines: string[]): IAnalysisResult => {
-  if (lines.some((line) => line.includes("no legal moves"))) {
-    return {
-      terminal: true,
-      scoreCp: 0,
-      mate: false,
-      mateIn: null,
-      depth: 0,
-      nodes: 0,
-      bestMove: null,
-      pv: [],
-    };
-  }
+// Given a White-relative centipawn score, decide whether it encodes a forced
+// mate and, if so, the signed mate distance in moves (+ = White mates, − = Black
+// mates). Callers must pass an already White-relative score (the UCI score is
+// side-to-move-relative and must be flipped first) so the sign is meaningful.
+const deriveMate = (
+  whiteCp: number
+): { mate: boolean; mateIn: number | null } => {
+  const mate = Math.abs(whiteCp) >= MATE_SCORE_THRESHOLD;
+  const mateIn = mate
+    ? Math.sign(whiteCp) *
+      Math.ceil((VALUE_MATE - Math.abs(whiteCp)) / MATE_PLY_STEP / 2)
+    : null;
+  return { mate, mateIn };
+};
 
-  let lastRow: string[] | null = null;
-  for (const line of lines) {
-    if (!line.includes("|")) continue;
+// Parse one UCI `info` line streamed by `elsa` during a search (single_thread.cpp
+// → emitUciInfo):
+//   info depth <d> score cp <cp> nodes <n> time <ms> pv <lan> <lan> ...
+// `cp` is raw centipawns from the SIDE-TO-MOVE's point of view (negamax) — the
+// caller flips it to White-relative. Mate is encoded as a large `cp` near
+// VALUE_MATE (elsa emits no "mate" token). `pv` is UCI long algebraic and the
+// engine already excludes its quiescence tail, so it is a clean main line.
+// Returns null for `info` lines without a usable depth+score (ignored upstream).
+const parseUciInfoLine = (
+  line: string
+): { depth: number; scoreCp: number; nodes: number; pvLan: string[] } | null => {
+  const tokens = line.split(/\s+/);
+  let depth: number | null = null;
+  let scoreCp: number | null = null;
+  let nodes = 0;
+  let pvLan: string[] = [];
 
-    // Drop the leading empty cell from the leading "| " delimiter, then trim.
-    const cells = line
-      .split("|")
-      .map((cell) => cell.trim())
-      .filter((_, idx) => idx > 0);
-
-    // A data row has a numeric depth (col 2) and numeric score (col 3); the
-    // header row ("Depth"/"Score") and TT/summary lines fail this check.
-    const depth = Number(cells[1]);
-    const score = Number(cells[2]);
-    if (Number.isInteger(depth) && depth > 0 && Number.isFinite(score)) {
-      lastRow = cells;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token === "depth") {
+      depth = Number(tokens[++i]);
+    } else if (token === "nodes") {
+      nodes = Number(tokens[++i]) || 0;
+    } else if (token === "score" && tokens[i + 1] === "cp") {
+      scoreCp = Number(tokens[i + 2]);
+    } else if (token === "pv") {
+      pvLan = tokens.slice(i + 1).filter(Boolean);
+      break; // pv is always last; the rest of the line is moves
     }
   }
 
-  if (!lastRow) {
-    return {
-      terminal: false,
-      scoreCp: 0,
-      mate: false,
-      mateIn: null,
-      depth: 0,
-      nodes: 0,
-      bestMove: null,
-      pv: [],
-    };
-  }
+  if (depth === null || !Number.isInteger(depth) || depth <= 0) return null;
+  if (scoreCp === null || !Number.isFinite(scoreCp)) return null;
 
-  const depth = Number(lastRow[1]);
-  const scorePawns = Number(lastRow[2]);
-  const nodes = Number(lastRow[3]) || 0;
-  const scoreCp = Math.round(scorePawns * 100);
-
-  // PV cell: keep main-line SAN only, stopping at the quiescence parenthetical.
-  const pvCell = lastRow[5] ?? "";
-  const pv: string[] = [];
-  for (const token of pvCell.split(/\s+/)) {
-    if (!token || token.startsWith("(")) break;
-    pv.push(token);
-  }
-
-  const mate = Math.abs(scoreCp) >= MATE_SCORE_THRESHOLD;
-  const mateIn = mate
-    ? Math.sign(scoreCp) *
-      Math.ceil((VALUE_MATE - Math.abs(scoreCp)) / MATE_PLY_STEP / 2)
-    : null;
-
-  return {
-    terminal: false,
-    scoreCp,
-    mate,
-    mateIn,
-    depth,
-    nodes,
-    bestMove: pv[0] ?? null,
-    pv,
-  };
+  return { depth, scoreCp, nodes, pvLan };
 };
 
 // Build the argv array for `elsa go ...` (no shell). Each element becomes a
@@ -123,4 +88,4 @@ const buildGoArgs = (options: IGoRequest): string[] => {
   return args;
 };
 
-export { parseEngineOutput, buildGoArgs, parseAnalysisOutput };
+export { parseEngineOutput, buildGoArgs, parseUciInfoLine, deriveMate };

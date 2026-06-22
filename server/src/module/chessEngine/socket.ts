@@ -2,12 +2,15 @@ import { Socket } from "socket.io";
 import logger from "../../lib/logger";
 import { AdminMiddleware } from "../../lib/middlewares";
 import ChessEngine from "./Engine";
+import { IAnalysisUpdate } from "./entities";
+import { deriveMate } from "./helpers";
 
-// Default search budget (seconds) for an analysis request. Kept short because
-// analysis auto-runs on every position change on the client, so each request
-// must stay snappy.
-const DEFAULT_ANALYSIS_TIME = 1.2;
-const MAX_ANALYSIS_TIME = 5;
+// Live-analysis depth cap. The client offers [15, 20, 25, 30]; we re-clamp here
+// so a crafted request can't drive the engine past MAX_DEPTH (36, types.h) or
+// below 1. Default mirrors the client's default selection.
+const DEFAULT_MAX_DEPTH = 20;
+const MIN_MAX_DEPTH = 1;
+const MAX_MAX_DEPTH = 30;
 
 // A FEN is six space-separated fields; we don't fully validate chess legality
 // here (the engine and the client's chess.js do that) — just reject obviously
@@ -17,12 +20,23 @@ const FEN_PATTERN = /^[1-8pnbrqkPNBRQK/]+ [wb] [KQkqA-Ha-h-]+ [a-h1-8-]+ \d+ \d+
 interface IAnalysisRequest {
   fen?: string;
   adminPass?: string;
-  searchSeconds?: number;
+  maxDepth?: number;
 }
 
 export default function registerEngineSocketHandlers(socket: Socket) {
-  socket.on("request_analysis", async (payload: IAnalysisRequest) => {
-    const { fen, adminPass, searchSeconds } = payload ?? {};
+  // At most one analysis runs per connection. A new request (or disconnect)
+  // kills the previous child first — the server side of the client's debounced
+  // latest-wins, and what stops orphaned searches from piling up.
+  let current: { kill: () => void } | null = null;
+  const killCurrent = () => {
+    if (current) {
+      current.kill();
+      current = null;
+    }
+  };
+
+  socket.on("request_analysis", (payload: IAnalysisRequest) => {
+    const { fen, adminPass, maxDepth } = payload ?? {};
 
     // Analysis is admin-gated. Same secret/constant-time check as the REST
     // engine routes; fails closed when ADMIN_PASS is unset.
@@ -39,21 +53,72 @@ export default function registerEngineSocketHandlers(socket: Socket) {
       return;
     }
 
-    const time = Math.min(
-      MAX_ANALYSIS_TIME,
-      Math.max(0.05, Number(searchSeconds) || DEFAULT_ANALYSIS_TIME)
+    const cleanFen = fen.trim();
+    const depthCap = Math.min(
+      MAX_MAX_DEPTH,
+      Math.max(MIN_MAX_DEPTH, Math.floor(Number(maxDepth)) || DEFAULT_MAX_DEPTH)
     );
+
+    // UCI `info` reports a side-to-move-relative (negamax) score; flip it to
+    // White-relative so the client keeps displaying it with no per-turn flip
+    // (see search.h). The old table-parse path got this conversion for free;
+    // the live path must do it here. Flipping by turn on the *client* was a past
+    // bug that inverted Black-to-move evals — keep the flip on this side only.
+    const sideToMove = cleanFen.split(/\s+/)[1] === "b" ? "b" : "w";
+    const toWhite = (cp: number) => (sideToMove === "w" ? cp : -cp);
+
+    // Supersede any in-flight search for this connection.
+    killCurrent();
+
+    // Remember the deepest update so the final `analysis_result` can re-send it
+    // (the client uses that event purely to clear its "analyzing" state).
+    let last: IAnalysisUpdate | null = null;
 
     try {
       const engine: ChessEngine = ChessEngine.getInstance();
-      const result = await engine.analyze(fen.trim(), time);
-
-      // Echo the analyzed FEN so the client can discard stale results that
-      // arrive after the position has already changed.
-      socket.emit("analysis_result", { fen: fen.trim(), ...result });
+      current = engine.analyzeStream(cleanFen, depthCap, {
+        onInfo: ({ depth, scoreCp, nodes, pvLan }) => {
+          const whiteCp = toWhite(scoreCp);
+          const update: IAnalysisUpdate = {
+            fen: cleanFen,
+            terminal: false,
+            scoreCp: whiteCp,
+            ...deriveMate(whiteCp),
+            depth,
+            nodes,
+            pvLan,
+          };
+          last = update;
+          socket.emit("analysis_progress", update);
+        },
+        onDone: () => {
+          const final: IAnalysisUpdate = last ?? {
+            fen: cleanFen,
+            terminal: false,
+            scoreCp: 0,
+            mate: false,
+            mateIn: null,
+            depth: 0,
+            nodes: 0,
+            pvLan: [],
+          };
+          socket.emit("analysis_result", final);
+          current = null;
+        },
+        onError: (err) => {
+          logger.error(
+            `Analysis stream failed for fen "${cleanFen}": ${err.message}`
+          );
+          socket.emit("analysis_error", { message: "Engine failed to analyze" });
+          current = null;
+        },
+      });
     } catch (error) {
-      logger.error(`Analysis failed for fen "${fen}": ${error}`);
+      logger.error(`Analysis failed for fen "${cleanFen}": ${error}`);
       socket.emit("analysis_error", { message: "Engine failed to analyze" });
     }
   });
+
+  // Don't leave a search running for a client that's gone.
+  socket.on("disconnect", killCurrent);
 }

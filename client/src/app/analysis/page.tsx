@@ -2,7 +2,13 @@
 
 import { ANALYSIS_START_FEN } from "@/lib/constants";
 import { connectSocket, socket } from "@/services";
-import { AnalysisError, AnalysisResult, Move, Square } from "@/types";
+import {
+  AnalysisError,
+  AnalysisResult,
+  AnalysisUpdate,
+  Move,
+  Square,
+} from "@/types";
 import { MantineProvider } from "@mantine/core";
 import { Chess } from "chess.js";
 import dynamic from "next/dynamic";
@@ -17,6 +23,12 @@ const AnalysisBoard = dynamic(() => import("@/components/AnalysisBoard"), {
 // (no NEXT_PUBLIC_*); the user types it and the server validates each request.
 const ADMIN_PASS_KEY = "chessmate_admin_pass";
 
+// Max search depth the live analysis may reach. The engine streams `info` per
+// completed depth up to this cap; deeper = slower but stronger. Mirrors the
+// server's clamp (1..30).
+const DEPTH_OPTIONS = [15, 20, 25, 30] as const;
+const DEFAULT_MAX_DEPTH = 20;
+
 type ConnState = "idle" | "connecting" | "ready" | "error";
 
 // One position in the analysis line: a FEN plus the move (for highlighting)
@@ -27,6 +39,44 @@ type PositionNode = { fen: string; lastMove: Move | null };
 const formatEval = (whiteCp: number): string => {
   const pawns = whiteCp / 100;
   return `${pawns >= 0 ? "+" : ""}${pawns.toFixed(2)}`;
+};
+
+// Convert a UCI long-algebraic PV (e.g. ["e2e4", "e7e5"]) to SAN by replaying it
+// from `fen`. SAN conversion happens here, not on the server, because the
+// chess-rules authority is client-side (chess.js). Stops at the first move that
+// doesn't apply (defensive — the engine's PV is always legal from the position).
+const lanPvToSan = (fen: string, pvLan: string[]): string[] => {
+  const game = new Chess(fen);
+  const san: string[] = [];
+  for (const lan of pvLan) {
+    try {
+      const move = game.move({
+        from: lan.slice(0, 2) as Square,
+        to: lan.slice(2, 4) as Square,
+        promotion: lan.length > 4 ? lan[4] : undefined,
+      });
+      san.push(move.san);
+    } catch {
+      break;
+    }
+  }
+  return san;
+};
+
+// Build the page's (SAN) AnalysisResult from a (LAN) streaming wire update.
+const toResult = (data: AnalysisUpdate): AnalysisResult => {
+  const pv = lanPvToSan(data.fen, data.pvLan ?? []);
+  return {
+    fen: data.fen,
+    terminal: data.terminal,
+    scoreCp: data.scoreCp,
+    mate: data.mate,
+    mateIn: data.mateIn,
+    depth: data.depth,
+    nodes: data.nodes,
+    bestMove: pv[0] ?? null,
+    pv,
+  };
 };
 
 export default function AnalysisPage() {
@@ -59,6 +109,7 @@ export default function AnalysisPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [maxDepth, setMaxDepth] = useState<number>(DEFAULT_MAX_DEPTH);
 
   // --- Connection state ---
   const [connState, setConnState] = useState<ConnState>("idle");
@@ -89,11 +140,21 @@ export default function AnalysisPage() {
     setAuthChecked(true);
   }, []);
 
-  // Register analysis listeners once.
+  // Register analysis listeners once. The engine streams `analysis_progress` per
+  // completed depth (update the displayed eval live, keep the "analyzing" pulse)
+  // and a final `analysis_result` at the search's end (settle the pulse). Both
+  // carry a LAN PV converted to SAN here, and both are dropped if the position
+  // has already moved on (stale guard via fenRef).
   useEffect(() => {
-    const onResult = (data: AnalysisResult) => {
+    const onProgress = (data: AnalysisUpdate) => {
       if (data.fen !== fenRef.current) return; // stale — position moved on
-      setResult(data);
+      setResult(toResult(data));
+      setAnalysisError(null);
+    };
+
+    const onResult = (data: AnalysisUpdate) => {
+      if (data.fen !== fenRef.current) return; // stale — position moved on
+      setResult(toResult(data));
       setAnalyzing(false);
       setAnalysisError(null);
     };
@@ -111,9 +172,11 @@ export default function AnalysisPage() {
       setAnalysisError(err.message || "Analysis failed");
     };
 
+    socket.on("analysis_progress", onProgress);
     socket.on("analysis_result", onResult);
     socket.on("analysis_error", onError);
     return () => {
+      socket.off("analysis_progress", onProgress);
       socket.off("analysis_result", onResult);
       socket.off("analysis_error", onError);
     };
@@ -186,12 +249,12 @@ export default function AnalysisPage() {
     setAnalysisError(null);
     const id = setTimeout(() => {
       if (socket.connected) {
-        socket.emit("request_analysis", { fen, adminPass });
+        socket.emit("request_analysis", { fen, adminPass, maxDepth });
       }
     }, 200);
 
     return () => clearTimeout(id);
-  }, [fen, adminPass, connState]);
+  }, [fen, adminPass, connState, maxDepth]);
 
   // Keyboard navigation: ←/→ step through the move line. Ignored while typing
   // in an input (FEN box / gate) so arrow keys still move the text caret there.
@@ -449,6 +512,25 @@ export default function AnalysisPage() {
 
               {connState === "ready" && (
                 <>
+                  {/* Max search depth — re-runs the live analysis on change */}
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="max-depth" className="text-sm text-gray-400">
+                      Max depth
+                    </label>
+                    <select
+                      id="max-depth"
+                      value={maxDepth}
+                      onChange={(e) => setMaxDepth(Number(e.target.value))}
+                      className="bg-gray-700 text-white text-sm rounded px-2 py-1 cursor-pointer"
+                    >
+                      {DEPTH_OPTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {terminalLabel ? (
                     <p className="text-lg font-semibold text-amber-300">
                       {terminalLabel}

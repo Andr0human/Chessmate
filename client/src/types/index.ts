@@ -45,6 +45,7 @@ export type {
   GameOverTimeout,
   MoveReceived,
   AnalysisResult,
+  AnalysisUpdate,
   AnalysisError,
 } from "./socket";
 

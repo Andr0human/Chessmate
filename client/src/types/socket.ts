@@ -33,6 +33,24 @@ interface AnalysisResult {
   pv: string[];
 }
 
+// Live wire payload for the streaming analysis events `analysis_progress` (one
+// per completed search depth) and `analysis_result` (final, deepest). Same shape
+// as AnalysisResult except the PV is `pvLan` — UCI long algebraic (e.g. "e2e4",
+// "e7e8q") — which the page converts to the SAN `pv`/`bestMove` of AnalysisResult
+// by replaying against the analyzed FEN (the server isn't the rules authority).
+// `scoreCp`/`mateIn` are already White-relative (the server flips the engine's
+// side-to-move-relative score before emitting).
+interface AnalysisUpdate {
+  fen: string;
+  terminal: boolean;
+  scoreCp: number;
+  mate: boolean;
+  mateIn: number | null;
+  depth: number;
+  nodes: number;
+  pvLan: string[];
+}
+
 // Server `analysis_error`. `unauthorized` distinguishes a failed admin check
 // (re-show the password gate) from other failures.
 interface AnalysisError {
@@ -45,5 +63,6 @@ export type {
   MoveReceived,
   MoveSent,
   AnalysisResult,
+  AnalysisUpdate,
   AnalysisError,
 };
