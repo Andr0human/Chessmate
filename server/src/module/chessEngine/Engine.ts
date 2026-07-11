@@ -140,6 +140,7 @@ class ChessEngine {
         depth: number;
         scoreCp: number;
         nodes: number;
+        nps: number;
         pvLan: string[];
       }) => void;
       onDone: () => void;

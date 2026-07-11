@@ -63,6 +63,15 @@ const lanPvToSan = (fen: string, pvLan: string[]): string[] => {
   return san;
 };
 
+// Compact nodes/sec for the analysis readout: 2_100_000 → "2.1M", 43_000 → "43k".
+// Sub-1000 values render as-is. Used only when nps > 0 (a pre-nps engine build
+// reports 0, in which case the caller hides the field).
+const formatNps = (nps: number): string => {
+  if (nps >= 1_000_000) return `${(nps / 1_000_000).toFixed(1)}M`;
+  if (nps >= 1_000) return `${Math.round(nps / 1_000)}k`;
+  return String(nps);
+};
+
 // Build the page's (SAN) AnalysisResult from a (LAN) streaming wire update.
 const toResult = (data: AnalysisUpdate): AnalysisResult => {
   const pv = lanPvToSan(data.fen, data.pvLan ?? []);
@@ -74,6 +83,7 @@ const toResult = (data: AnalysisUpdate): AnalysisResult => {
     mateIn: data.mateIn,
     depth: data.depth,
     nodes: data.nodes,
+    nps: data.nps,
     bestMove: pv[0] ?? null,
     pv,
   };
@@ -237,6 +247,7 @@ export default function AnalysisPage() {
         mateIn: null,
         depth: 0,
         nodes: 0,
+        nps: 0,
         bestMove: null,
         pv: [],
       });
@@ -568,11 +579,12 @@ export default function AnalysisPage() {
                         </div>
                       )}
 
-                      {/* Depth / nodes */}
+                      {/* Depth / nodes / nps */}
                       {result && result.depth > 0 && (
                         <p className="text-sm text-gray-400">
                           Depth {result.depth} · {result.nodes.toLocaleString()}{" "}
                           nodes
+                          {result.nps > 0 && ` · ${formatNps(result.nps)} nps`}
                         </p>
                       )}
 

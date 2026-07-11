@@ -29,6 +29,7 @@ interface AnalysisResult {
   mateIn: number | null;
   depth: number;
   nodes: number;
+  nps: number;
   bestMove: string | null;
   pv: string[];
 }
@@ -48,6 +49,7 @@ interface AnalysisUpdate {
   mateIn: number | null;
   depth: number;
   nodes: number;
+  nps: number;
   pvLan: string[];
 }
 

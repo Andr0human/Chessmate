@@ -77,7 +77,7 @@ export default function registerEngineSocketHandlers(socket: Socket) {
     try {
       const engine: ChessEngine = ChessEngine.getInstance();
       current = engine.analyzeStream(cleanFen, depthCap, {
-        onInfo: ({ depth, scoreCp, nodes, pvLan }) => {
+        onInfo: ({ depth, scoreCp, nodes, nps, pvLan }) => {
           const whiteCp = toWhite(scoreCp);
           const update: IAnalysisUpdate = {
             fen: cleanFen,
@@ -86,6 +86,7 @@ export default function registerEngineSocketHandlers(socket: Socket) {
             ...deriveMate(whiteCp),
             depth,
             nodes,
+            nps,
             pvLan,
           };
           last = update;
@@ -100,6 +101,7 @@ export default function registerEngineSocketHandlers(socket: Socket) {
             mateIn: null,
             depth: 0,
             nodes: 0,
+            nps: 0,
             pvLan: [],
           };
           socket.emit("analysis_result", final);

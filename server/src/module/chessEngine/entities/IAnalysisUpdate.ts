@@ -21,6 +21,7 @@ interface IAnalysisUpdate {
   mateIn: number | null;
   depth: number;
   nodes: number;
+  nps: number;
   pvLan: string[];
 }
 

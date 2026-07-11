@@ -34,19 +34,28 @@ const deriveMate = (
 
 // Parse one UCI `info` line streamed by `elsa` during a search (single_thread.cpp
 // → emitUciInfo):
-//   info depth <d> score cp <cp> nodes <n> time <ms> pv <lan> <lan> ...
+//   info depth <d> score cp <cp> nodes <n> nps <nps> time <ms> pv <lan> <lan> ...
 // `cp` is raw centipawns from the SIDE-TO-MOVE's point of view (negamax) — the
 // caller flips it to White-relative. Mate is encoded as a large `cp` near
-// VALUE_MATE (elsa emits no "mate" token). `pv` is UCI long algebraic and the
-// engine already excludes its quiescence tail, so it is a clean main line.
+// VALUE_MATE (elsa emits no "mate" token). `nodes` is cumulative over the whole
+// search (main + quiescence, all depths) and `nps` is nodes/sec — both default
+// to 0 so a pre-nps engine build still parses. `pv` is UCI long algebraic and
+// the engine already excludes its quiescence tail, so it is a clean main line.
 // Returns null for `info` lines without a usable depth+score (ignored upstream).
 const parseUciInfoLine = (
   line: string
-): { depth: number; scoreCp: number; nodes: number; pvLan: string[] } | null => {
+): {
+  depth: number;
+  scoreCp: number;
+  nodes: number;
+  nps: number;
+  pvLan: string[];
+} | null => {
   const tokens = line.split(/\s+/);
   let depth: number | null = null;
   let scoreCp: number | null = null;
   let nodes = 0;
+  let nps = 0;
   let pvLan: string[] = [];
 
   for (let i = 0; i < tokens.length; i++) {
@@ -55,6 +64,8 @@ const parseUciInfoLine = (
       depth = Number(tokens[++i]);
     } else if (token === "nodes") {
       nodes = Number(tokens[++i]) || 0;
+    } else if (token === "nps") {
+      nps = Number(tokens[++i]) || 0;
     } else if (token === "score" && tokens[i + 1] === "cp") {
       scoreCp = Number(tokens[i + 2]);
     } else if (token === "pv") {
@@ -66,7 +77,7 @@ const parseUciInfoLine = (
   if (depth === null || !Number.isInteger(depth) || depth <= 0) return null;
   if (scoreCp === null || !Number.isFinite(scoreCp)) return null;
 
-  return { depth, scoreCp, nodes, pvLan };
+  return { depth, scoreCp, nodes, nps, pvLan };
 };
 
 // Build the argv array for `elsa go ...` (no shell). Each element becomes a
