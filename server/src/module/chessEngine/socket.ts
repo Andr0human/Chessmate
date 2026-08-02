@@ -5,12 +5,16 @@ import ChessEngine from "./Engine";
 import { IAnalysisUpdate } from "./entities";
 import { deriveMate } from "./helpers";
 
-// Live-analysis depth cap. The client offers [15, 20, 25, 30]; we re-clamp here
-// so a crafted request can't drive the engine past MAX_DEPTH (36, types.h) or
-// below 1. Default mirrors the client's default selection.
+// Live-analysis depth cap. The client offers [15, 20, 25, 30, 35, 40]; we
+// re-clamp here so a crafted request can't drive the engine past MAX_DEPTH
+// (40, types.h) or below 1. The engine's `go depth <d>` does NOT clamp to
+// MAX_DEPTH itself (uci.cpp handleGo passes the parsed value straight into
+// search), so this clamp is what keeps a request inside the ply-indexed table
+// bounds — keep MAX_MAX_DEPTH == the engine's MAX_DEPTH, never above it.
+// Default mirrors the client's default selection.
 const DEFAULT_MAX_DEPTH = 20;
 const MIN_MAX_DEPTH = 1;
-const MAX_MAX_DEPTH = 30;
+const MAX_MAX_DEPTH = 40;
 
 // A FEN is six space-separated fields; we don't fully validate chess legality
 // here (the engine and the client's chess.js do that) — just reject obviously

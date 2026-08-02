@@ -26,7 +26,9 @@ const ADMIN_PASS_KEY = "chessmate_admin_pass";
 // Max search depth the live analysis may reach. The engine streams `info` per
 // completed depth up to this cap; deeper = slower but stronger. Mirrors the
 // server's clamp (1..30).
-const DEPTH_OPTIONS = [15, 20, 25, 30] as const;
+// Upper bound tracks the engine's MAX_DEPTH (40, types.h); the server re-clamps
+// to the same ceiling in chessEngine/socket.ts.
+const DEPTH_OPTIONS = [15, 20, 25, 30, 35, 40] as const;
 const DEFAULT_MAX_DEPTH = 20;
 
 type ConnState = "idle" | "connecting" | "ready" | "error";
