@@ -1,0 +1,34 @@
+# Keep the build context small, deterministic, and — critically — FREE OF ENV.
+#
+# `.env*` is the load-bearing line. `client/.env` exists on the dev machine with
+# NEXT_PUBLIC_API_BASE_URL=http://localhost:8080, and Next inlines NEXT_PUBLIC_*
+# into the JS bundle AT BUILD TIME. If that file reached the build context, the
+# production bundle would ship hard-coded localhost and every API call from a
+# real browser would fail. It is gitignored, so a build from a clean clone never
+# sees it — but a build from the working directory would. This line is what makes
+# the two cases identical.
+#
+# Leaving the vars UNSET is deliberate, not an oversight: axios then issues
+# relative URLs and socket.io-client falls back to the page origin, so the image
+# never learns its own hostname and the Vercel cutover is a DNS + ingress change
+# rather than a rebuild. The Dockerfile asserts this held.
+#
+# There is a SECOND leak path, found while checking what output:'standalone'
+# does on Vercel: writeStandaloneDirectory() copies .env and .env.production
+# into .next/standalone, where the runtime server.js reads them at START-UP.
+# So an .env in the context would not only inline NEXT_PUBLIC_* at build time,
+# it would ship into the image and be re-read at runtime, outranking whatever
+# compose passes in. One line closes both.
+.env
+.env.*
+
+node_modules
+.next
+out
+build
+.git
+.vercel
+*.tsbuildinfo
+*.log
+npm-debug.log*
+.DS_Store
