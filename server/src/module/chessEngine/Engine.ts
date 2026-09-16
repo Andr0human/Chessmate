@@ -23,6 +23,13 @@ export const VALID_DIFFICULTIES = new Set([
   "expert",
 ]);
 
+// Transposition-table size (MB) for single-player moves. Each move is a fresh
+// short-lived `elsa bestmove` process, so a table much larger than the search
+// can fill is wasted allocation; 8 MB keeps concurrent games cheap on a small
+// instance. elsa rounds to a power-of-two entry count. Analysis mode is left on
+// the engine default (64 MB).
+const SINGLEPLAYER_HASH_MB = 8;
+
 class ChessEngine {
   private static instance: ChessEngine;
   private enginePath: string;
@@ -108,6 +115,8 @@ class ChessEngine {
         "depth",
         "difficulty",
         safeDifficulty,
+        "hash",
+        String(SINGLEPLAYER_HASH_MB),
       ]);
       const engineOutput: string[] = parseEngineOutput(result.stdout);
 
